@@ -2,11 +2,12 @@ package entity
 
 import "time"
 
-type CollectionEntity struct {
+type Collection struct {
 	ID          string
 	UserID      string
 	Name        string
 	Description string
+	NoteCount   int
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }

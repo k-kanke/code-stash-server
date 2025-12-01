@@ -1,11 +1,17 @@
 package router
 
-import "github.com/labstack/echo/v4"
+import (
+	"github.com/labstack/echo/v4"
 
-func RegisterRouter(e *echo.Echo, h *Handler) {
+	"github.com/k-kanke/code-stash-server/internal/adapter/controller"
+)
+
+func RegisterRouter(e *echo.Echo, h *controller.Handler) {
+	api := e.Group("/api")
 	// 認証ミドルウェア
 
 	// Collections
+	api.GET("/collections", h.ListCollections)
 
 	// Folders
 
