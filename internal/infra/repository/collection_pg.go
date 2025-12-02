@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/google/uuid"
+
 	"github.com/k-kanke/code-stash-server/internal/domain/entity"
 	usecaseRepo "github.com/k-kanke/code-stash-server/internal/usecase/repository"
 )
@@ -63,4 +65,12 @@ ORDER BY c.created_at DESC`
 	}
 
 	return collections, nil
+}
+
+func (r *collectionPGRepository) Create(ctx context.Context, userID, name, description string) error {
+	const query = `
+INSERT INTO collections (id, user_id, name, description, note_count)
+VALUES ($1, $2, $3, $4, 0)`
+	_, err := r.db.ExecContext(ctx, query, uuid.NewString(), userID, name, description)
+	return err
 }

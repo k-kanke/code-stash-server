@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 
@@ -12,6 +13,7 @@ import (
 
 type CollectionUsecase interface {
 	List(ctx context.Context, userID string) ([]entity.Collection, error)
+	Create(ctx context.Context, userID, name, description string) error
 }
 
 type Handler struct {
@@ -56,4 +58,35 @@ func (h *Handler) ListCollections(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, resp)
+}
+
+func (h *Handler) CreateCollection(c echo.Context) error {
+	userID := c.QueryParam("user_id")
+	if userID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "user_id is required",
+		})
+	}
+
+	var req dto.CreateCollectionRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "invalid request body",
+		})
+	}
+
+	req.Name = strings.TrimSpace(req.Name)
+	if req.Name == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "name is required",
+		})
+	}
+
+	if err := h.collectionUsecase.Create(c.Request().Context(), userID, req.Name, req.Description); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "failed to create collection",
+		})
+	}
+
+	return c.NoContent(http.StatusCreated)
 }

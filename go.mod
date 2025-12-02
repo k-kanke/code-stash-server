@@ -3,6 +3,7 @@ module github.com/k-kanke/code-stash-server
 go 1.25.0
 
 require (
+	github.com/google/uuid v1.6.0
 	github.com/google/wire v0.6.0
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/labstack/echo/v4 v4.13.4

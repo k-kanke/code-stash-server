@@ -19,3 +19,7 @@ func NewUsecase(repo repository.CollectionRepository) *Usecase {
 func (uc *Usecase) List(ctx context.Context, userID string) ([]entity.Collection, error) {
 	return uc.repo.List(ctx, userID)
 }
+
+func (uc *Usecase) Create(ctx context.Context, userID, name, description string) error {
+	return uc.repo.Create(ctx, userID, name, description)
+}
