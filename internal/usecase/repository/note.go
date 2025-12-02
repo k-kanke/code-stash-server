@@ -8,4 +8,5 @@ import (
 
 type NoteRepository interface {
 	ListByCollection(ctx context.Context, userID, collectionID string) ([]entity.Note, error)
+	Create(ctx context.Context, userID, collectionID string, folderID *string, title, code, language, note string, tags []string) error
 }

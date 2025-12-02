@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/google/uuid"
 	"github.com/lib/pq"
 
 	"github.com/k-kanke/code-stash-server/internal/domain/entity"
@@ -83,4 +84,50 @@ ORDER BY n.updated_at DESC`
 	}
 
 	return notes, nil
+}
+
+func (r *notePGRepository) Create(ctx context.Context, userID, collectionID string, folderID *string, title, code, language, noteBody string, tags []string) error {
+	const query = `
+INSERT INTO notes (id, collection_id, folder_id, user_id, title, code, language, note, tags)
+SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9
+WHERE EXISTS (
+	SELECT 1 FROM collections WHERE id = $2 AND user_id = $4
+) AND (
+	($3)::uuid IS NULL OR EXISTS (
+		SELECT 1 FROM folders WHERE id = ($3)::uuid AND collection_id = $2
+	)
+)`
+
+	var folder sql.NullString
+	if folderID != nil && *folderID != "" {
+		folder.Valid = true
+		folder.String = *folderID
+	}
+
+	result, err := r.db.ExecContext(
+		ctx,
+		query,
+		uuid.NewString(),
+		collectionID,
+		folder,
+		userID,
+		title,
+		code,
+		language,
+		noteBody,
+		pq.Array(tags),
+	)
+	if err != nil {
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
 }

@@ -26,6 +26,7 @@ type FolderUsecase interface {
 
 type NoteUsecase interface {
 	List(ctx context.Context, userID, collectionID string) ([]entity.Note, error)
+	Create(ctx context.Context, userID, collectionID string, folderID *string, title, code, language, note string, tags []string) error
 }
 
 type Handler struct {
@@ -265,6 +266,81 @@ func (h *Handler) ListNotes(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, resp)
+}
+
+func (h *Handler) CreateNote(c echo.Context) error {
+	userID := c.QueryParam("user_id")
+	if userID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "user_id is required",
+		})
+	}
+
+	collectionID := strings.TrimSpace(c.Param("id"))
+	if collectionID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "collection id is required",
+		})
+	}
+
+	var req dto.CreateNoteRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "invalid request body",
+		})
+	}
+
+	title := strings.TrimSpace(req.Title)
+	if title == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "title is required",
+		})
+	}
+
+	language := strings.TrimSpace(req.Language)
+	if language == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "language is required",
+		})
+	}
+
+	code := strings.TrimSpace(req.Code)
+	if code == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "code is required",
+		})
+	}
+
+	var folderID *string
+	if req.FolderID != nil {
+		if trimmed := strings.TrimSpace(*req.FolderID); trimmed != "" {
+			folder := trimmed
+			folderID = &folder
+		}
+	}
+
+	if err := h.noteUsecase.Create(
+		c.Request().Context(),
+		userID,
+		collectionID,
+		folderID,
+		title,
+		code,
+		language,
+		req.Note,
+		req.Tags,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return c.JSON(http.StatusNotFound, map[string]string{
+				"error": "collection or folder not found",
+			})
+		}
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "failed to create note",
+		})
+	}
+
+	return c.NoContent(http.StatusCreated)
 }
 
 func buildSnippet(n entity.Note) string {
