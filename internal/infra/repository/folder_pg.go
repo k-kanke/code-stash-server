@@ -1,0 +1,73 @@
+package repository
+
+import (
+	"context"
+	"database/sql"
+
+	"github.com/k-kanke/code-stash-server/internal/domain/entity"
+	usecaseRepo "github.com/k-kanke/code-stash-server/internal/usecase/repository"
+)
+
+type folderPGRepository struct {
+	db *sql.DB
+}
+
+func NewFolderPGRepository(db *sql.DB) usecaseRepo.FolderRepository {
+	return &folderPGRepository{db: db}
+}
+
+func (r *folderPGRepository) ListByCollection(ctx context.Context, userID, collectionID string) ([]entity.Folder, error) {
+	const query = `
+SELECT
+	f.id,
+	c.user_id,
+	f.collection_id,
+	f.parent_folder_id,
+	f.name,
+	f.sort_order,
+	f.created_at,
+	f.updated_at
+FROM folders f
+INNER JOIN collections c ON c.id = f.collection_id
+WHERE c.user_id = $1 AND f.collection_id = $2
+ORDER BY f.sort_order, f.created_at`
+
+	rows, err := r.db.QueryContext(ctx, query, userID, collectionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	folders := make([]entity.Folder, 0)
+	for rows.Next() {
+		var folder entity.Folder
+		var parent sql.NullString
+
+		if err := rows.Scan(
+			&folder.ID,
+			&folder.UserID,
+			&folder.CollectionID,
+			&parent,
+			&folder.Name,
+			&folder.SortOrder,
+			&folder.CreatedAt,
+			&folder.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+
+		if parent.Valid {
+			folder.ParentFolderID = &parent.String
+		} else {
+			folder.ParentFolderID = nil
+		}
+
+		folders = append(folders, folder)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return folders, nil
+}

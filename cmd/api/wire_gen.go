@@ -11,6 +11,7 @@ import (
 	"github.com/k-kanke/code-stash-server/internal/adapter/controller"
 	"github.com/k-kanke/code-stash-server/internal/infra/repository"
 	"github.com/k-kanke/code-stash-server/internal/usecase/collection"
+	"github.com/k-kanke/code-stash-server/internal/usecase/folder"
 )
 
 import (
@@ -22,8 +23,11 @@ import (
 func InitializeHandler(db *sql.DB) (*controller.Handler, error) {
 	collectionRepository := repository.NewCollectionPGRepository(db)
 	usecase := collection.NewUsecase(collectionRepository)
+	folderRepository := repository.NewFolderPGRepository(db)
+	folderUsecase := folder.NewUsecase(folderRepository)
 	dependencies := controller.Dependencies{
 		Collections: usecase,
+		Folders:     folderUsecase,
 	}
 	handler := controller.NewHandler(dependencies)
 	return handler, nil

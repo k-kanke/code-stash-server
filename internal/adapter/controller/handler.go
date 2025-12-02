@@ -19,17 +19,24 @@ type CollectionUsecase interface {
 	Create(ctx context.Context, userID, name, description string) error
 }
 
+type FolderUsecase interface {
+	List(ctx context.Context, userID, collectionID string) ([]entity.Folder, error)
+}
+
 type Handler struct {
 	collectionUsecase CollectionUsecase
+	folderUsecase     FolderUsecase
 }
 
 type Dependencies struct {
 	Collections CollectionUsecase
+	Folders     FolderUsecase
 }
 
 func NewHandler(deps Dependencies) *Handler {
 	return &Handler{
 		collectionUsecase: deps.Collections,
+		folderUsecase:     deps.Folders,
 	}
 }
 
@@ -128,6 +135,44 @@ func (h *Handler) GetCollection(c echo.Context) error {
 		NoteCount:   collection.NoteCount,
 		CreatedAt:   collection.CreatedAt,
 		UpdatedAt:   collection.UpdatedAt,
+	}
+
+	return c.JSON(http.StatusOK, resp)
+}
+
+func (h *Handler) ListFolders(c echo.Context) error {
+	userID := c.QueryParam("user_id")
+	if userID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "user_id is required",
+		})
+	}
+
+	collectionID := strings.TrimSpace(c.Param("id"))
+	if collectionID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "collection id is required",
+		})
+	}
+
+	folders, err := h.folderUsecase.List(c.Request().Context(), userID, collectionID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "failed to fetch folders",
+		})
+	}
+
+	resp := make([]dto.Folder, 0, len(folders))
+	for _, f := range folders {
+		resp = append(resp, dto.Folder{
+			ID:             f.ID,
+			CollectionID:   f.CollectionID,
+			ParentFolderID: f.ParentFolderID,
+			Name:           f.Name,
+			SortOrder:      f.SortOrder,
+			CreatedAt:      f.CreatedAt,
+			UpdatedAt:      f.UpdatedAt,
+		})
 	}
 
 	return c.JSON(http.StatusOK, resp)

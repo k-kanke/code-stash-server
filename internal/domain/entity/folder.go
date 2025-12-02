@@ -8,6 +8,7 @@ type Folder struct {
 	CollectionID   string
 	ParentFolderID *string
 	Name           string
+	SortOrder      int
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 }
