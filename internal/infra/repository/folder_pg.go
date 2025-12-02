@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/google/uuid"
+
 	"github.com/k-kanke/code-stash-server/internal/domain/entity"
 	usecaseRepo "github.com/k-kanke/code-stash-server/internal/usecase/repository"
 )
@@ -70,4 +72,34 @@ ORDER BY f.sort_order, f.created_at`
 	}
 
 	return folders, nil
+}
+
+func (r *folderPGRepository) Create(ctx context.Context, userID, collectionID string, parentFolderID *string, name string) error {
+	const query = `
+INSERT INTO folders (id, collection_id, parent_folder_id, name)
+SELECT $1, $2, $3, $4
+WHERE EXISTS (
+	SELECT 1 FROM collections WHERE id = $2 AND user_id = $5
+)`
+
+	var parent sql.NullString
+	if parentFolderID != nil && *parentFolderID != "" {
+		parent.Valid = true
+		parent.String = *parentFolderID
+	}
+
+	result, err := r.db.ExecContext(ctx, query, uuid.NewString(), collectionID, parent, name, userID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
 }

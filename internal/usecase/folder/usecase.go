@@ -18,3 +18,7 @@ func NewUsecase(repo repository.FolderRepository) *Usecase {
 func (uc *Usecase) List(ctx context.Context, userID, collectionID string) ([]entity.Folder, error) {
 	return uc.repo.ListByCollection(ctx, userID, collectionID)
 }
+
+func (uc *Usecase) Create(ctx context.Context, userID, collectionID string, parentFolderID *string, name string) error {
+	return uc.repo.Create(ctx, userID, collectionID, parentFolderID, name)
+}

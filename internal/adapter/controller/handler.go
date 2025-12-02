@@ -21,6 +21,7 @@ type CollectionUsecase interface {
 
 type FolderUsecase interface {
 	List(ctx context.Context, userID, collectionID string) ([]entity.Folder, error)
+	Create(ctx context.Context, userID, collectionID string, parentFolderID *string, name string) error
 }
 
 type Handler struct {
@@ -176,4 +177,47 @@ func (h *Handler) ListFolders(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, resp)
+}
+
+func (h *Handler) CreateFolder(c echo.Context) error {
+	userID := c.QueryParam("user_id")
+	if userID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "user_id is required",
+		})
+	}
+
+	collectionID := strings.TrimSpace(c.Param("id"))
+	if collectionID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "collection id is required",
+		})
+	}
+
+	var req dto.CreateFolderRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "invalid request body",
+		})
+	}
+
+	req.Name = strings.TrimSpace(req.Name)
+	if req.Name == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "name is required",
+		})
+	}
+
+	if err := h.folderUsecase.Create(c.Request().Context(), userID, collectionID, req.ParentFolderID, req.Name); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return c.JSON(http.StatusNotFound, map[string]string{
+				"error": "collection not found",
+			})
+		}
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "failed to create folder",
+		})
+	}
+
+	return c.NoContent(http.StatusCreated)
 }
