@@ -10,7 +10,6 @@ CREATE TABLE collections (
   user_id     UUID NOT NULL REFERENCES users(id),
   name        TEXT NOT NULL,
   description TEXT,
-  note_count  INT,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );

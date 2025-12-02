@@ -1,0 +1,2 @@
+ALTER TABLE collections
+ADD COLUMN note_count INT NOT NULL DEFAULT 0;
