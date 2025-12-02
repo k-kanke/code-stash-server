@@ -8,5 +8,6 @@ import (
 
 type CollectionRepository interface {
 	List(ctx context.Context, userID string) ([]entity.Collection, error)
+	Get(ctx context.Context, userID, collectionID string) (*entity.Collection, error)
 	Create(ctx context.Context, userID, name, description string) error
 }

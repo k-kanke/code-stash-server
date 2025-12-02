@@ -20,6 +20,10 @@ func (uc *Usecase) List(ctx context.Context, userID string) ([]entity.Collection
 	return uc.repo.List(ctx, userID)
 }
 
+func (uc *Usecase) Get(ctx context.Context, userID, collectionID string) (*entity.Collection, error) {
+	return uc.repo.Get(ctx, userID, collectionID)
+}
+
 func (uc *Usecase) Create(ctx context.Context, userID, name, description string) error {
 	return uc.repo.Create(ctx, userID, name, description)
 }

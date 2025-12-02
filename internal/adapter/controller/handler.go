@@ -2,6 +2,8 @@ package controller
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -13,6 +15,7 @@ import (
 
 type CollectionUsecase interface {
 	List(ctx context.Context, userID string) ([]entity.Collection, error)
+	Get(ctx context.Context, userID, collectionID string) (*entity.Collection, error)
 	Create(ctx context.Context, userID, name, description string) error
 }
 
@@ -89,4 +92,43 @@ func (h *Handler) CreateCollection(c echo.Context) error {
 	}
 
 	return c.NoContent(http.StatusCreated)
+}
+
+func (h *Handler) GetCollection(c echo.Context) error {
+	userID := c.QueryParam("user_id")
+	if userID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "user_id is required",
+		})
+	}
+
+	collectionID := strings.TrimSpace(c.Param("id"))
+	if collectionID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "collection id is required",
+		})
+	}
+
+	collection, err := h.collectionUsecase.Get(c.Request().Context(), userID, collectionID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return c.JSON(http.StatusNotFound, map[string]string{
+				"error": "collection not found",
+			})
+		}
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "failed to fetch collection",
+		})
+	}
+
+	resp := dto.Collection{
+		ID:          collection.ID,
+		Name:        collection.Name,
+		Description: collection.Description,
+		NoteCount:   collection.NoteCount,
+		CreatedAt:   collection.CreatedAt,
+		UpdatedAt:   collection.UpdatedAt,
+	}
+
+	return c.JSON(http.StatusOK, resp)
 }

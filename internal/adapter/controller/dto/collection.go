@@ -15,3 +15,7 @@ type CreateCollectionRequest struct {
 	Name        string `json:"name" validate:"required"`
 	Description string `json:"description"`
 }
+
+type GetCollection struct {
+	ID string `json:"id"`
+}

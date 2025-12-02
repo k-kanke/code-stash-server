@@ -67,6 +67,41 @@ ORDER BY c.created_at DESC`
 	return collections, nil
 }
 
+func (r *collectionPGRepository) Get(ctx context.Context, userID, collectionID string) (*entity.Collection, error) {
+	const query = `
+SELECT
+	c.id,
+	c.user_id,
+	c.name,
+	COALESCE(c.description, ''),
+	c.created_at,
+	c.updated_at,
+	COALESCE(notes.note_count, 0)
+FROM collections c
+LEFT JOIN (
+	SELECT collection_id, COUNT(*) AS note_count
+	FROM notes
+	GROUP BY collection_id
+) notes ON notes.collection_id = c.id
+WHERE c.user_id = $1 AND c.id = $2`
+
+	var col entity.Collection
+	err := r.db.QueryRowContext(ctx, query, userID, collectionID).Scan(
+		&col.ID,
+		&col.UserID,
+		&col.Name,
+		&col.Description,
+		&col.CreatedAt,
+		&col.UpdatedAt,
+		&col.NoteCount,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &col, nil
+}
+
 func (r *collectionPGRepository) Create(ctx context.Context, userID, name, description string) error {
 	const query = `
 INSERT INTO collections (id, user_id, name, description, note_count)
