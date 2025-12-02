@@ -20,4 +20,5 @@ func RegisterRouter(e *echo.Echo, h *controller.Handler) {
 	api.POST("/collections/:id/folders", h.CreateFolder)
 
 	// Notes
+	api.GET("/collections/:id/notes", h.ListNotes)
 }

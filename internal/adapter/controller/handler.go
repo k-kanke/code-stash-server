@@ -24,20 +24,27 @@ type FolderUsecase interface {
 	Create(ctx context.Context, userID, collectionID string, parentFolderID *string, name string) error
 }
 
+type NoteUsecase interface {
+	List(ctx context.Context, userID, collectionID string) ([]entity.Note, error)
+}
+
 type Handler struct {
 	collectionUsecase CollectionUsecase
 	folderUsecase     FolderUsecase
+	noteUsecase       NoteUsecase
 }
 
 type Dependencies struct {
 	Collections CollectionUsecase
 	Folders     FolderUsecase
+	Notes       NoteUsecase
 }
 
 func NewHandler(deps Dependencies) *Handler {
 	return &Handler{
 		collectionUsecase: deps.Collections,
 		folderUsecase:     deps.Folders,
+		noteUsecase:       deps.Notes,
 	}
 }
 
@@ -220,4 +227,60 @@ func (h *Handler) CreateFolder(c echo.Context) error {
 	}
 
 	return c.NoContent(http.StatusCreated)
+}
+
+func (h *Handler) ListNotes(c echo.Context) error {
+	userID := c.QueryParam("user_id")
+	if userID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "user_id is required",
+		})
+	}
+
+	collectionID := strings.TrimSpace(c.Param("id"))
+	if collectionID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "collection id is required",
+		})
+	}
+
+	notes, err := h.noteUsecase.List(c.Request().Context(), userID, collectionID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "failed to fetch notes",
+		})
+	}
+
+	resp := make([]dto.NoteSummary, 0, len(notes))
+	for _, n := range notes {
+		resp = append(resp, dto.NoteSummary{
+			ID:        n.ID,
+			Title:     n.Title,
+			Language:  n.Language,
+			Tags:      n.Tags,
+			Snippet:   buildSnippet(n),
+			FolderID:  n.FolderID,
+			UpdatedAt: n.UpdatedAt,
+		})
+	}
+
+	return c.JSON(http.StatusOK, resp)
+}
+
+func buildSnippet(n entity.Note) string {
+	if snippet := strings.TrimSpace(n.Note); snippet != "" {
+		return truncate(snippet, 120)
+	}
+	if snippet := strings.TrimSpace(n.Code); snippet != "" {
+		return truncate(snippet, 120)
+	}
+	return ""
+}
+
+func truncate(src string, max int) string {
+	runes := []rune(src)
+	if len(runes) <= max {
+		return src
+	}
+	return string(runes[:max])
 }
