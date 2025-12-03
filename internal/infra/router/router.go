@@ -22,7 +22,7 @@ func RegisterRouter(e *echo.Echo, h *controller.Handler) {
 	// Notes
 	api.GET("/collections/:id/notes", h.ListNotes)
 	api.POST("/collections/:id/notes", h.CreateNote)
-	api.GET("/notes/:id", h.GetNote)
-	api.PATCH("/notes/:id", h.UpdateNote)
-	api.DELETE("/notes/:id", h.DeleteNote)
+	api.GET("/note/:id", h.GetNote)
+	api.PATCH("/note/:id", h.UpdateNote)
+	api.DELETE("/note/:id", h.DeleteNote)
 }
