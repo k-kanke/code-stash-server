@@ -26,6 +26,7 @@ type FolderUsecase interface {
 
 type NoteUsecase interface {
 	List(ctx context.Context, userID, collectionID string) ([]entity.Note, error)
+	Get(ctx context.Context, userID, noteID string) (*entity.Note, error)
 	Create(ctx context.Context, userID, collectionID string, folderID *string, title, code, language, note string, tags []string) error
 }
 
@@ -263,6 +264,49 @@ func (h *Handler) ListNotes(c echo.Context) error {
 			FolderID:  n.FolderID,
 			UpdatedAt: n.UpdatedAt,
 		})
+	}
+
+	return c.JSON(http.StatusOK, resp)
+}
+
+func (h *Handler) GetNote(c echo.Context) error {
+	userID := c.QueryParam("user_id")
+	if userID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "user_id is required",
+		})
+	}
+
+	noteID := strings.TrimSpace(c.Param("id"))
+	if noteID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "note id is required",
+		})
+	}
+
+	note, err := h.noteUsecase.Get(c.Request().Context(), userID, noteID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return c.JSON(http.StatusNotFound, map[string]string{
+				"error": "note not found",
+			})
+		}
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "failed to fetch note",
+		})
+	}
+
+	resp := dto.NoteDetail{
+		ID:           note.ID,
+		CollectionID: note.CollectionID,
+		FolderID:     note.FolderID,
+		Title:        note.Title,
+		Language:     note.Language,
+		Tags:         note.Tags,
+		Code:         note.Code,
+		Note:         note.Note,
+		CreatedAt:    note.CreatedAt,
+		UpdatedAt:    note.UpdatedAt,
 	}
 
 	return c.JSON(http.StatusOK, resp)

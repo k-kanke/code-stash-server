@@ -86,6 +86,58 @@ ORDER BY n.updated_at DESC`
 	return notes, nil
 }
 
+func (r *notePGRepository) Get(ctx context.Context, userID, noteID string) (*entity.Note, error) {
+	const query = `
+SELECT
+	n.id,
+	n.user_id,
+	n.collection_id,
+	n.folder_id,
+	n.title,
+	n.language,
+	n.tags,
+	n.code,
+	n.note,
+	n.created_at,
+	n.updated_at
+FROM notes n
+WHERE n.user_id = $1 AND n.id = $2`
+
+	var note entity.Note
+	var folder sql.NullString
+	var body sql.NullString
+	var tags pq.StringArray
+
+	err := r.db.QueryRowContext(ctx, query, userID, noteID).Scan(
+		&note.ID,
+		&note.UserID,
+		&note.CollectionID,
+		&folder,
+		&note.Title,
+		&note.Language,
+		&tags,
+		&note.Code,
+		&body,
+		&note.CreatedAt,
+		&note.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if folder.Valid {
+		note.FolderID = &folder.String
+	}
+	if body.Valid {
+		note.Note = body.String
+	}
+	if tags != nil {
+		note.Tags = append([]string(nil), tags...)
+	}
+
+	return &note, nil
+}
+
 func (r *notePGRepository) Create(ctx context.Context, userID, collectionID string, folderID *string, title, code, language, noteBody string, tags []string) error {
 	const query = `
 INSERT INTO notes (id, collection_id, folder_id, user_id, title, code, language, note, tags)
