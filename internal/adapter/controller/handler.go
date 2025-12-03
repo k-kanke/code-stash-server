@@ -28,8 +28,8 @@ type FolderUsecase interface {
 type NoteUsecase interface {
 	List(ctx context.Context, userID, collectionID string) ([]entity.Note, error)
 	Get(ctx context.Context, userID, noteID string) (*entity.Note, error)
-	Create(ctx context.Context, userID, collectionID string, folderID *string, title, code, language, note string, tags []string) error
-	Update(ctx context.Context, userID, noteID string, params noteUsecase.UpdateParams) error
+	Create(ctx context.Context, in noteUsecase.CreateInput) error
+	Update(ctx context.Context, in noteUsecase.UpdateInput) error
 }
 
 type Handler struct {
@@ -336,7 +336,10 @@ func (h *Handler) UpdateNote(c echo.Context) error {
 		})
 	}
 
-	params := noteUsecase.UpdateParams{}
+	params := noteUsecase.UpdateInput{
+		UserID: userID,
+		NoteID: noteID,
+	}
 	hasUpdate := false
 
 	if req.Title != nil {
@@ -395,7 +398,7 @@ func (h *Handler) UpdateNote(c echo.Context) error {
 		})
 	}
 
-	if err := h.noteUsecase.Update(c.Request().Context(), userID, noteID, params); err != nil {
+	if err := h.noteUsecase.Update(c.Request().Context(), params); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return c.JSON(http.StatusNotFound, map[string]string{
 				"error": "note not found",
@@ -460,17 +463,18 @@ func (h *Handler) CreateNote(c echo.Context) error {
 		}
 	}
 
-	if err := h.noteUsecase.Create(
-		c.Request().Context(),
-		userID,
-		collectionID,
-		folderID,
-		title,
-		code,
-		language,
-		req.Note,
-		req.Tags,
-	); err != nil {
+	in := noteUsecase.CreateInput{
+		UserID:       userID,
+		CollectionID: collectionID,
+		FolderID:     folderID,
+		Title:        title,
+		Language:     language,
+		Code:         code,
+		Note:         req.Note,
+		Tags:         req.Tags,
+	}
+
+	if err := h.noteUsecase.Create(c.Request().Context(), in); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return c.JSON(http.StatusNotFound, map[string]string{
 				"error": "collection or folder not found",

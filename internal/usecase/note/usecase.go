@@ -15,7 +15,20 @@ func NewUsecase(repo repository.NoteRepository) *Usecase {
 	return &Usecase{repo: repo}
 }
 
-type UpdateParams struct {
+type CreateInput struct {
+	UserID       string
+	CollectionID string
+	FolderID     *string
+	Title        string
+	Language     string
+	Code         string
+	Note         string
+	Tags         []string
+}
+
+type UpdateInput struct {
+	UserID   string
+	NoteID   string
 	FolderID *string
 	Title    *string
 	Language *string
@@ -32,18 +45,18 @@ func (uc *Usecase) Get(ctx context.Context, userID, noteID string) (*entity.Note
 	return uc.repo.Get(ctx, userID, noteID)
 }
 
-func (uc *Usecase) Create(ctx context.Context, userID, collectionID string, folderID *string, title, code, language, note string, tags []string) error {
-	return uc.repo.Create(ctx, userID, collectionID, folderID, title, code, language, note, tags)
+func (uc *Usecase) Create(ctx context.Context, in CreateInput) error {
+	return uc.repo.Create(ctx, in.UserID, in.CollectionID, in.FolderID, in.Title, in.Code, in.Language, in.Note, in.Tags)
 }
 
-func (uc *Usecase) Update(ctx context.Context, userID, noteID string, params UpdateParams) error {
+func (uc *Usecase) Update(ctx context.Context, in UpdateInput) error {
 	update := repository.NoteUpdate{
-		FolderID: params.FolderID,
-		Title:    params.Title,
-		Language: params.Language,
-		Code:     params.Code,
-		Note:     params.Note,
-		Tags:     params.Tags,
+		FolderID: in.FolderID,
+		Title:    in.Title,
+		Language: in.Language,
+		Code:     in.Code,
+		Note:     in.Note,
+		Tags:     in.Tags,
 	}
-	return uc.repo.Update(ctx, userID, noteID, update)
+	return uc.repo.Update(ctx, in.UserID, in.NoteID, update)
 }
