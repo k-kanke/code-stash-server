@@ -11,6 +11,7 @@ import (
 
 	"github.com/k-kanke/code-stash-server/internal/adapter/controller/dto"
 	"github.com/k-kanke/code-stash-server/internal/domain/entity"
+	noteUsecase "github.com/k-kanke/code-stash-server/internal/usecase/note"
 )
 
 type CollectionUsecase interface {
@@ -28,6 +29,7 @@ type NoteUsecase interface {
 	List(ctx context.Context, userID, collectionID string) ([]entity.Note, error)
 	Get(ctx context.Context, userID, noteID string) (*entity.Note, error)
 	Create(ctx context.Context, userID, collectionID string, folderID *string, title, code, language, note string, tags []string) error
+	Update(ctx context.Context, userID, noteID string, params noteUsecase.UpdateParams) error
 }
 
 type Handler struct {
@@ -310,6 +312,101 @@ func (h *Handler) GetNote(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, resp)
+}
+
+func (h *Handler) UpdateNote(c echo.Context) error {
+	userID := c.QueryParam("user_id")
+	if userID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "user_id is required",
+		})
+	}
+
+	noteID := strings.TrimSpace(c.Param("id"))
+	if noteID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "note id is required",
+		})
+	}
+
+	var req dto.UpdateNoteRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "invalid request body",
+		})
+	}
+
+	params := noteUsecase.UpdateParams{}
+	hasUpdate := false
+
+	if req.Title != nil {
+		title := strings.TrimSpace(*req.Title)
+		if title == "" {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "title cannot be empty",
+			})
+		}
+		params.Title = &title
+		hasUpdate = true
+	}
+
+	if req.Language != nil {
+		language := strings.TrimSpace(*req.Language)
+		if language == "" {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "language cannot be empty",
+			})
+		}
+		params.Language = &language
+		hasUpdate = true
+	}
+
+	if req.Code != nil {
+		code := strings.TrimSpace(*req.Code)
+		if code == "" {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "code cannot be empty",
+			})
+		}
+		params.Code = &code
+		hasUpdate = true
+	}
+
+	if req.Note != nil {
+		params.Note = req.Note
+		hasUpdate = true
+	}
+
+	if req.FolderID != nil {
+		folderID := strings.TrimSpace(*req.FolderID)
+		params.FolderID = &folderID
+		hasUpdate = true
+	}
+
+	if req.Tags != nil {
+		tags := req.Tags
+		params.Tags = &tags
+		hasUpdate = true
+	}
+
+	if !hasUpdate {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "no fields to update",
+		})
+	}
+
+	if err := h.noteUsecase.Update(c.Request().Context(), userID, noteID, params); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return c.JSON(http.StatusNotFound, map[string]string{
+				"error": "note not found",
+			})
+		}
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "failed to update note",
+		})
+	}
+
+	return c.NoContent(http.StatusNoContent)
 }
 
 func (h *Handler) CreateNote(c echo.Context) error {

@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
@@ -169,6 +171,74 @@ WHERE EXISTS (
 		noteBody,
 		pq.Array(tags),
 	)
+	if err != nil {
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
+}
+
+func (r *notePGRepository) Update(ctx context.Context, userID, noteID string, update usecaseRepo.NoteUpdate) error {
+	setClauses := []string{"updated_at = now()"}
+	args := make([]any, 0, 8)
+	idx := 1
+
+	if update.Title != nil {
+		setClauses = append(setClauses, "title = $"+strconv.Itoa(idx))
+		args = append(args, *update.Title)
+		idx++
+	}
+	if update.Language != nil {
+		setClauses = append(setClauses, "language = $"+strconv.Itoa(idx))
+		args = append(args, *update.Language)
+		idx++
+	}
+	if update.Code != nil {
+		setClauses = append(setClauses, "code = $"+strconv.Itoa(idx))
+		args = append(args, *update.Code)
+		idx++
+	}
+	if update.Note != nil {
+		setClauses = append(setClauses, "note = $"+strconv.Itoa(idx))
+		args = append(args, *update.Note)
+		idx++
+	}
+	if update.Tags != nil {
+		setClauses = append(setClauses, "tags = $"+strconv.Itoa(idx))
+		args = append(args, pq.Array(*update.Tags))
+		idx++
+	}
+	if update.FolderID != nil {
+		var folder sql.NullString
+		if trimmed := strings.TrimSpace(*update.FolderID); trimmed != "" {
+			folder.Valid = true
+			folder.String = trimmed
+		}
+		setClauses = append(setClauses, "folder_id = $"+strconv.Itoa(idx))
+		args = append(args, folder)
+		idx++
+	}
+
+	if len(setClauses) == 1 {
+		return nil
+	}
+
+	query := `
+UPDATE notes
+SET ` + strings.Join(setClauses, ", ") + `
+WHERE user_id = $` + strconv.Itoa(idx) + ` AND id = $` + strconv.Itoa(idx+1)
+
+	args = append(args, userID, noteID)
+
+	result, err := r.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return err
 	}
