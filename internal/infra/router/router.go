@@ -24,4 +24,5 @@ func RegisterRouter(e *echo.Echo, h *controller.Handler) {
 	api.POST("/collections/:id/notes", h.CreateNote)
 	api.GET("/notes/:id", h.GetNote)
 	api.PATCH("/notes/:id", h.UpdateNote)
+	api.DELETE("/notes/:id", h.DeleteNote)
 }

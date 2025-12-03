@@ -37,6 +37,11 @@ type UpdateInput struct {
 	Tags     *[]string
 }
 
+type DeleteInput struct {
+	UserID string
+	NoteID string
+}
+
 func (uc *Usecase) List(ctx context.Context, userID, collectionID string) ([]entity.Note, error) {
 	return uc.repo.ListByCollection(ctx, userID, collectionID)
 }
@@ -59,4 +64,8 @@ func (uc *Usecase) Update(ctx context.Context, in UpdateInput) error {
 		Tags:     in.Tags,
 	}
 	return uc.repo.Update(ctx, in.UserID, in.NoteID, update)
+}
+
+func (uc *Usecase) Delete(ctx context.Context, in DeleteInput) error {
+	return uc.repo.Delete(ctx, in.UserID, in.NoteID)
 }

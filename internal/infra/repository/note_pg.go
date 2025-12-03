@@ -253,3 +253,22 @@ WHERE user_id = $` + strconv.Itoa(idx) + ` AND id = $` + strconv.Itoa(idx+1)
 
 	return nil
 }
+
+func (r *notePGRepository) Delete(ctx context.Context, userID, noteID string) error {
+	const query = `DELETE FROM notes WHERE user_id = $1 AND id = $2`
+
+	result, err := r.db.ExecContext(ctx, query, userID, noteID)
+	if err != nil {
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
+}

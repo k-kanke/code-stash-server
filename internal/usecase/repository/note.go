@@ -11,6 +11,7 @@ type NoteRepository interface {
 	Get(ctx context.Context, userID, noteID string) (*entity.Note, error)
 	Create(ctx context.Context, userID, collectionID string, folderID *string, title, code, language, note string, tags []string) error
 	Update(ctx context.Context, userID, noteID string, update NoteUpdate) error
+	Delete(ctx context.Context, userID, noteID string) error
 }
 
 type NoteUpdate struct {

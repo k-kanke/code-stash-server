@@ -30,6 +30,7 @@ type NoteUsecase interface {
 	Get(ctx context.Context, userID, noteID string) (*entity.Note, error)
 	Create(ctx context.Context, in noteUsecase.CreateInput) error
 	Update(ctx context.Context, in noteUsecase.UpdateInput) error
+	Delete(ctx context.Context, in noteUsecase.DeleteInput) error
 }
 
 type Handler struct {
@@ -406,6 +407,40 @@ func (h *Handler) UpdateNote(c echo.Context) error {
 		}
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "failed to update note",
+		})
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
+func (h *Handler) DeleteNote(c echo.Context) error {
+	userID := c.QueryParam("user_id")
+	if userID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "user_id is required",
+		})
+	}
+
+	noteID := strings.TrimSpace(c.Param("id"))
+	if noteID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "note id is required",
+		})
+	}
+
+	in := noteUsecase.DeleteInput{
+		UserID: userID,
+		NoteID: noteID,
+	}
+
+	if err := h.noteUsecase.Delete(c.Request().Context(), in); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return c.JSON(http.StatusNotFound, map[string]string{
+				"error": "note not found",
+			})
+		}
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "failed to delete note",
 		})
 	}
 
