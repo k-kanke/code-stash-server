@@ -7,7 +7,7 @@ import (
 )
 
 func RegisterRouter(e *echo.Echo, h *controller.Handler) {
-	api := e.Group("/api")
+	api := e.Group("/path")
 	// 認証ミドルウェア
 
 	// Collections
