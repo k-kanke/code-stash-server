@@ -101,5 +101,11 @@ WHERE EXISTS (
 		return sql.ErrNoRows
 	}
 
-	return nil
+	return touchCollection(ctx, r.db, userID, collectionID)
+}
+
+func touchCollection(ctx context.Context, db *sql.DB, userID, collectionID string) error {
+	const update = `UPDATE collections SET updated_at = now() WHERE user_id = $1 AND id = $2`
+	_, err := db.ExecContext(ctx, update, userID, collectionID)
+	return err
 }

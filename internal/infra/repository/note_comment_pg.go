@@ -166,6 +166,10 @@ RETURNING id, note_id, author_id, body, line_start, line_end, parent_comment_id,
 		comment.ParentCommentID = &val
 	}
 
+	if err := touchCollectionByNote(ctx, r.db, in.UserID, in.NoteID); err != nil {
+		return nil, err
+	}
+
 	return &comment, nil
 }
 

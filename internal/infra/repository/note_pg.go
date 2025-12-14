@@ -183,7 +183,7 @@ WHERE EXISTS (
 		return sql.ErrNoRows
 	}
 
-	return nil
+	return touchCollection(ctx, r.db, userID, collectionID)
 }
 
 func (r *notePGRepository) Update(ctx context.Context, userID, noteID string, update usecaseRepo.NoteUpdate) error {
@@ -251,7 +251,7 @@ WHERE user_id = $` + strconv.Itoa(idx) + ` AND id = $` + strconv.Itoa(idx+1)
 		return sql.ErrNoRows
 	}
 
-	return nil
+	return touchCollectionByNote(ctx, r.db, userID, noteID)
 }
 
 func (r *notePGRepository) Delete(ctx context.Context, userID, noteID string) error {
@@ -270,5 +270,30 @@ func (r *notePGRepository) Delete(ctx context.Context, userID, noteID string) er
 		return sql.ErrNoRows
 	}
 
+	return nil
+}
+
+func touchCollectionByNote(ctx context.Context, db *sql.DB, userID, noteID string) error {
+	const query = `
+UPDATE collections AS c
+SET updated_at = now()
+FROM notes n
+WHERE n.id = $1
+  AND n.user_id = $2
+  AND n.collection_id = c.id
+  AND c.user_id = $2`
+
+	result, err := db.ExecContext(ctx, query, noteID, userID)
+	if err != nil {
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
 	return nil
 }
