@@ -10,6 +10,7 @@ import (
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 
 	"github.com/k-kanke/code-stash-server/internal/infra/router"
 )
@@ -28,6 +29,9 @@ func main() {
 
 	e := echo.New()
 	e.HideBanner = true
+	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
+		Format: "${time_rfc3339} | ${method} ${uri} | status=${status} latency=${latency_human}\n",
+	}))
 	router.RegisterRouter(e, handler)
 
 	addr := getEnv("API_ADDR", ":8085")
