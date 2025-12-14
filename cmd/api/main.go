@@ -12,7 +12,12 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
+	"github.com/k-kanke/code-stash-server/internal/adapter/controller"
+	"github.com/k-kanke/code-stash-server/internal/domain/service"
+	appInfra "github.com/k-kanke/code-stash-server/internal/infra"
+	infraRepo "github.com/k-kanke/code-stash-server/internal/infra/repository"
 	"github.com/k-kanke/code-stash-server/internal/infra/router"
+	authusecase "github.com/k-kanke/code-stash-server/internal/usecase"
 )
 
 func main() {
@@ -27,10 +32,28 @@ func main() {
 		log.Fatalf("failed to initialize handler: %v", err)
 	}
 
+	userRepo := infraRepo.NewUserPGRepository(db)
+	authUC := authusecase.NewUsecase(userRepo)
+
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		log.Fatalf("JWT_SECRET is not set")
+	}
+
+	tokenService, err := service.NewTokenService(secret, "codestash-api", 24*time.Hour)
+	if err != nil {
+		log.Fatalf("failed to create token service: %v", err)
+	}
+
+	authHandler := controller.NewAuthHandler(controller.AuthDependencies{
+		Usecase:      authUC,
+		TokenService: tokenService,
+	})
+
 	e := echo.New()
 	e.HideBanner = true
 	e.Use(middleware.Logger())
-	router.RegisterRouter(e, handler)
+	router.RegisterRouter(e, handler, authHandler, appInfra.NewAuthMiddleware(tokenService))
 
 	addr := getEnv("API_ADDR", ":8085")
 	if err := e.Start(addr); err != nil {

@@ -12,6 +12,7 @@ import (
 
 	"github.com/k-kanke/code-stash-server/internal/adapter/controller/dto"
 	"github.com/k-kanke/code-stash-server/internal/domain/entity"
+	appInfra "github.com/k-kanke/code-stash-server/internal/infra"
 	folderUsecase "github.com/k-kanke/code-stash-server/internal/usecase/folder"
 	noteUsecase "github.com/k-kanke/code-stash-server/internal/usecase/note"
 )
@@ -68,11 +69,9 @@ func NewHandler(deps Dependencies) *Handler {
 }
 
 func (h *Handler) ListCollections(c echo.Context) error {
-	userID := c.QueryParam("user_id")
-	if userID == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "user_id is required",
-		})
+	userID, err := requireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	collections, err := h.collectionUsecase.List(c.Request().Context(), userID)
@@ -98,11 +97,9 @@ func (h *Handler) ListCollections(c echo.Context) error {
 }
 
 func (h *Handler) CreateCollection(c echo.Context) error {
-	userID := c.QueryParam("user_id")
-	if userID == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "user_id is required",
-		})
+	userID, err := requireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	var req dto.CreateCollectionRequest
@@ -129,11 +126,9 @@ func (h *Handler) CreateCollection(c echo.Context) error {
 }
 
 func (h *Handler) GetCollection(c echo.Context) error {
-	userID := c.QueryParam("user_id")
-	if userID == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "user_id is required",
-		})
+	userID, err := requireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	collectionID := strings.TrimSpace(c.Param("id"))
@@ -168,11 +163,9 @@ func (h *Handler) GetCollection(c echo.Context) error {
 }
 
 func (h *Handler) ListFolders(c echo.Context) error {
-	userID := c.QueryParam("user_id")
-	if userID == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "user_id is required",
-		})
+	userID, err := requireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	collectionID := strings.TrimSpace(c.Param("id"))
@@ -206,11 +199,9 @@ func (h *Handler) ListFolders(c echo.Context) error {
 }
 
 func (h *Handler) CreateFolder(c echo.Context) error {
-	userID := c.QueryParam("user_id")
-	if userID == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "user_id is required",
-		})
+	userID, err := requireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	collectionID := strings.TrimSpace(c.Param("id"))
@@ -254,11 +245,9 @@ func (h *Handler) CreateFolder(c echo.Context) error {
 }
 
 func (h *Handler) UpdateFolder(c echo.Context) error {
-	userID := c.QueryParam("user_id")
-	if userID == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "user_id is required",
-		})
+	userID, err := requireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	collectionID := strings.TrimSpace(c.Param("id"))
@@ -309,11 +298,9 @@ func (h *Handler) UpdateFolder(c echo.Context) error {
 }
 
 func (h *Handler) DeleteFolder(c echo.Context) error {
-	userID := c.QueryParam("user_id")
-	if userID == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "user_id is required",
-		})
+	userID, err := requireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	collectionID := strings.TrimSpace(c.Param("id"))
@@ -345,11 +332,9 @@ func (h *Handler) DeleteFolder(c echo.Context) error {
 }
 
 func (h *Handler) ListNotes(c echo.Context) error {
-	userID := c.QueryParam("user_id")
-	if userID == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "user_id is required",
-		})
+	userID, err := requireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	collectionID := strings.TrimSpace(c.Param("id"))
@@ -383,11 +368,9 @@ func (h *Handler) ListNotes(c echo.Context) error {
 }
 
 func (h *Handler) GetNote(c echo.Context) error {
-	userID := c.QueryParam("user_id")
-	if userID == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "user_id is required",
-		})
+	userID, err := requireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	noteID := strings.TrimSpace(c.Param("id"))
@@ -426,11 +409,9 @@ func (h *Handler) GetNote(c echo.Context) error {
 }
 
 func (h *Handler) UpdateNote(c echo.Context) error {
-	userID := c.QueryParam("user_id")
-	if userID == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "user_id is required",
-		})
+	userID, err := requireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	noteID := strings.TrimSpace(c.Param("id"))
@@ -524,11 +505,9 @@ func (h *Handler) UpdateNote(c echo.Context) error {
 }
 
 func (h *Handler) DeleteNote(c echo.Context) error {
-	userID := c.QueryParam("user_id")
-	if userID == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "user_id is required",
-		})
+	userID, err := requireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	noteID := strings.TrimSpace(c.Param("id"))
@@ -558,11 +537,9 @@ func (h *Handler) DeleteNote(c echo.Context) error {
 }
 
 func (h *Handler) ListNoteComments(c echo.Context) error {
-	userID := c.QueryParam("user_id")
-	if userID == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "user_id is required",
-		})
+	userID, err := requireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	noteID := strings.TrimSpace(c.Param("id"))
@@ -588,11 +565,9 @@ func (h *Handler) ListNoteComments(c echo.Context) error {
 }
 
 func (h *Handler) CreateNoteComment(c echo.Context) error {
-	userID := c.QueryParam("user_id")
-	if userID == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "user_id is required",
-		})
+	userID, err := requireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	noteID := strings.TrimSpace(c.Param("id"))
@@ -648,11 +623,9 @@ func (h *Handler) CreateNoteComment(c echo.Context) error {
 }
 
 func (h *Handler) UpdateNoteComment(c echo.Context) error {
-	userID := c.QueryParam("user_id")
-	if userID == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "user_id is required",
-		})
+	userID, err := requireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	commentID := strings.TrimSpace(c.Param("id"))
@@ -708,11 +681,9 @@ func (h *Handler) UpdateNoteComment(c echo.Context) error {
 }
 
 func (h *Handler) DeleteNoteComment(c echo.Context) error {
-	userID := c.QueryParam("user_id")
-	if userID == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "user_id is required",
-		})
+	userID, err := requireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	commentID := strings.TrimSpace(c.Param("id"))
@@ -737,11 +708,9 @@ func (h *Handler) DeleteNoteComment(c echo.Context) error {
 }
 
 func (h *Handler) CreateNote(c echo.Context) error {
-	userID := c.QueryParam("user_id")
-	if userID == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "user_id is required",
-		})
+	userID, err := requireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	collectionID := strings.TrimSpace(c.Param("id"))
@@ -848,4 +817,13 @@ func truncate(src string, max int) string {
 		return src
 	}
 	return string(runes[:max])
+}
+
+func requireUserID(c echo.Context) (string, error) {
+	if userID, ok := appInfra.UserIDFromContext(c); ok && userID != "" {
+		return userID, nil
+	}
+	return "", c.JSON(http.StatusUnauthorized, map[string]string{
+		"error": "unauthorized",
+	})
 }

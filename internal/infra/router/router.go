@@ -6,29 +6,31 @@ import (
 	"github.com/k-kanke/code-stash-server/internal/adapter/controller"
 )
 
-func RegisterRouter(e *echo.Echo, h *controller.Handler) {
+func RegisterRouter(e *echo.Echo, h *controller.Handler, auth *controller.AuthHandler, authMiddleware echo.MiddlewareFunc) {
 	api := e.Group("/api")
-	// 認証ミドルウェア
 
-	// Collections
-	api.GET("/collections", h.ListCollections)
-	api.GET("/collections/:id", h.GetCollection)
-	api.POST("/collections", h.CreateCollection)
+	api.POST("/auth/register", auth.Register)
+	api.POST("/auth/login", auth.Login)
 
-	// Folders
-	api.GET("/collections/:id/folders", h.ListFolders)
-	api.POST("/collections/:id/folders", h.CreateFolder)
-	api.PATCH("/collections/:id/folders/:folderId", h.UpdateFolder)
-	api.DELETE("/collections/:id/folders/:folderId", h.DeleteFolder)
+	protected := api.Group("")
+	protected.Use(authMiddleware)
 
-	// Notes
-	api.GET("/collections/:id/notes", h.ListNotes)
-	api.POST("/collections/:id/notes", h.CreateNote)
-	api.GET("/note/:id", h.GetNote)
-	api.PATCH("/note/:id", h.UpdateNote)
-	api.DELETE("/note/:id", h.DeleteNote)
-	api.GET("/note/:id/comments", h.ListNoteComments)
-	api.POST("/note/:id/comments", h.CreateNoteComment)
-	api.PATCH("/comments/:id", h.UpdateNoteComment)
-	api.DELETE("/comments/:id", h.DeleteNoteComment)
+	protected.GET("/collections", h.ListCollections)
+	protected.GET("/collections/:id", h.GetCollection)
+	protected.POST("/collections", h.CreateCollection)
+
+	protected.GET("/collections/:id/folders", h.ListFolders)
+	protected.POST("/collections/:id/folders", h.CreateFolder)
+	protected.PATCH("/collections/:id/folders/:folderId", h.UpdateFolder)
+	protected.DELETE("/collections/:id/folders/:folderId", h.DeleteFolder)
+
+	protected.GET("/collections/:id/notes", h.ListNotes)
+	protected.POST("/collections/:id/notes", h.CreateNote)
+	protected.GET("/note/:id", h.GetNote)
+	protected.PATCH("/note/:id", h.UpdateNote)
+	protected.DELETE("/note/:id", h.DeleteNote)
+	protected.GET("/note/:id/comments", h.ListNoteComments)
+	protected.POST("/note/:id/comments", h.CreateNoteComment)
+	protected.PATCH("/comments/:id", h.UpdateNoteComment)
+	protected.DELETE("/comments/:id", h.DeleteNoteComment)
 }
