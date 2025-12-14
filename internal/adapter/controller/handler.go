@@ -33,16 +33,25 @@ type NoteUsecase interface {
 	Delete(ctx context.Context, in noteUsecase.DeleteInput) error
 }
 
+type NoteCommentUsecase interface {
+	ListByNote(ctx context.Context, userID, noteID string) ([]entity.NoteComment, error)
+	Create(ctx context.Context, in noteUsecase.CommentCreateInput) (*entity.NoteComment, error)
+	Update(ctx context.Context, in noteUsecase.CommentUpdateInput) (*entity.NoteComment, error)
+	Delete(ctx context.Context, userID, commentID string) error
+}
+
 type Handler struct {
 	collectionUsecase CollectionUsecase
 	folderUsecase     FolderUsecase
 	noteUsecase       NoteUsecase
+	commentUsecase    NoteCommentUsecase
 }
 
 type Dependencies struct {
 	Collections CollectionUsecase
 	Folders     FolderUsecase
 	Notes       NoteUsecase
+	Comments    NoteCommentUsecase
 }
 
 func NewHandler(deps Dependencies) *Handler {
@@ -50,6 +59,7 @@ func NewHandler(deps Dependencies) *Handler {
 		collectionUsecase: deps.Collections,
 		folderUsecase:     deps.Folders,
 		noteUsecase:       deps.Notes,
+		commentUsecase:    deps.Comments,
 	}
 }
 
@@ -447,6 +457,175 @@ func (h *Handler) DeleteNote(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+func (h *Handler) ListNoteComments(c echo.Context) error {
+	userID := c.QueryParam("user_id")
+	if userID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "user_id is required",
+		})
+	}
+
+	noteID := strings.TrimSpace(c.Param("id"))
+	if noteID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "note id is required",
+		})
+	}
+
+	comments, err := h.commentUsecase.ListByNote(c.Request().Context(), userID, noteID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "failed to fetch comments",
+		})
+	}
+
+	resp := make([]dto.NoteComment, 0, len(comments))
+	for _, comment := range comments {
+		resp = append(resp, toCommentDTO(comment))
+	}
+
+	return c.JSON(http.StatusOK, resp)
+}
+
+func (h *Handler) CreateNoteComment(c echo.Context) error {
+	userID := c.QueryParam("user_id")
+	if userID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "user_id is required",
+		})
+	}
+
+	noteID := strings.TrimSpace(c.Param("id"))
+	if noteID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "note id is required",
+		})
+	}
+
+	var req dto.CreateCommentRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "invalid request body",
+		})
+	}
+
+	req.Body = strings.TrimSpace(req.Body)
+	if req.Body == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "body is required",
+		})
+	}
+
+	comment, err := h.commentUsecase.Create(c.Request().Context(), noteUsecase.CommentCreateInput{
+		UserID:   userID,
+		NoteID:   noteID,
+		Body:     req.Body,
+		LineStart: req.LineStart,
+		LineEnd:   req.LineEnd,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return c.JSON(http.StatusNotFound, map[string]string{
+				"error": "note not found",
+			})
+		}
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "failed to create comment",
+		})
+	}
+
+	return c.JSON(http.StatusCreated, toCommentDTO(*comment))
+}
+
+func (h *Handler) UpdateNoteComment(c echo.Context) error {
+	userID := c.QueryParam("user_id")
+	if userID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "user_id is required",
+		})
+	}
+
+	commentID := strings.TrimSpace(c.Param("id"))
+	if commentID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "comment id is required",
+		})
+	}
+
+	var req dto.UpdateCommentRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "invalid request body",
+		})
+	}
+
+	if req.Body != nil {
+		trimmed := strings.TrimSpace(*req.Body)
+		if trimmed == "" {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "body cannot be empty",
+			})
+		}
+		req.Body = &trimmed
+	}
+
+	if req.Body == nil && req.LineStart == nil && req.LineEnd == nil && req.Resolved == nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "no update fields provided",
+		})
+	}
+
+	comment, err := h.commentUsecase.Update(c.Request().Context(), noteUsecase.CommentUpdateInput{
+		UserID:    userID,
+		CommentID: commentID,
+		Body:      req.Body,
+		LineStart: req.LineStart,
+		LineEnd:   req.LineEnd,
+		Resolved:  req.Resolved,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return c.JSON(http.StatusNotFound, map[string]string{
+				"error": "comment not found",
+			})
+		}
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "failed to update comment",
+		})
+	}
+
+	return c.JSON(http.StatusOK, toCommentDTO(*comment))
+}
+
+func (h *Handler) DeleteNoteComment(c echo.Context) error {
+	userID := c.QueryParam("user_id")
+	if userID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "user_id is required",
+		})
+	}
+
+	commentID := strings.TrimSpace(c.Param("id"))
+	if commentID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "comment id is required",
+		})
+	}
+
+	if err := h.commentUsecase.Delete(c.Request().Context(), userID, commentID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return c.JSON(http.StatusNotFound, map[string]string{
+				"error": "comment not found",
+			})
+		}
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "failed to delete comment",
+		})
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
 func (h *Handler) CreateNote(c echo.Context) error {
 	userID := c.QueryParam("user_id")
 	if userID == "" {
@@ -521,6 +700,20 @@ func (h *Handler) CreateNote(c echo.Context) error {
 	}
 
 	return c.NoContent(http.StatusCreated)
+}
+
+func toCommentDTO(comment entity.NoteComment) dto.NoteComment {
+	return dto.NoteComment{
+		ID:        comment.ID,
+		NoteID:    comment.NoteID,
+		AuthorID:  comment.AuthorID,
+		Body:      comment.Body,
+		LineStart: comment.LineStart,
+		LineEnd:   comment.LineEnd,
+		Resolved:  comment.Resolved,
+		CreatedAt: comment.CreatedAt,
+		UpdatedAt: comment.UpdatedAt,
+	}
 }
 
 func buildSnippet(n entity.Note) string {

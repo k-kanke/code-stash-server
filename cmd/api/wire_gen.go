@@ -28,10 +28,13 @@ func InitializeHandler(db *sql.DB) (*controller.Handler, error) {
 	folderUsecase := folder.NewUsecase(folderRepository)
 	noteRepository := repository.NewNotePGRepository(db)
 	noteUsecase := note.NewUsecase(noteRepository)
+	noteCommentRepository := repository.NewNoteCommentPGRepository(db)
+	commentUsecase := note.NewCommentUsecase(noteCommentRepository)
 	dependencies := controller.Dependencies{
 		Collections: usecase,
 		Folders:     folderUsecase,
 		Notes:       noteUsecase,
+		Comments:    commentUsecase,
 	}
 	handler := controller.NewHandler(dependencies)
 	return handler, nil
