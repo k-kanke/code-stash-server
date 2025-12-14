@@ -12,6 +12,7 @@ import (
 
 	"github.com/k-kanke/code-stash-server/internal/adapter/controller/dto"
 	"github.com/k-kanke/code-stash-server/internal/domain/entity"
+	folderUsecase "github.com/k-kanke/code-stash-server/internal/usecase/folder"
 	noteUsecase "github.com/k-kanke/code-stash-server/internal/usecase/note"
 )
 
@@ -24,6 +25,7 @@ type CollectionUsecase interface {
 type FolderUsecase interface {
 	List(ctx context.Context, userID, collectionID string) ([]entity.Folder, error)
 	Create(ctx context.Context, userID, collectionID string, parentFolderID *string, name string) error
+	Delete(ctx context.Context, userID, collectionID, folderID string) error
 }
 
 type NoteUsecase interface {
@@ -237,12 +239,53 @@ func (h *Handler) CreateFolder(c echo.Context) error {
 				"error": "collection not found",
 			})
 		}
+		if errors.Is(err, folderUsecase.ErrNameConflict) {
+			return c.JSON(http.StatusConflict, map[string]string{
+				"error": "a folder or note with the same name already exists in this location",
+			})
+		}
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "failed to create folder",
 		})
 	}
 
 	return c.NoContent(http.StatusCreated)
+}
+
+func (h *Handler) DeleteFolder(c echo.Context) error {
+	userID := c.QueryParam("user_id")
+	if userID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "user_id is required",
+		})
+	}
+
+	collectionID := strings.TrimSpace(c.Param("id"))
+	if collectionID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "collection id is required",
+		})
+	}
+
+	folderID := strings.TrimSpace(c.Param("folderId"))
+	if folderID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "folder id is required",
+		})
+	}
+
+	if err := h.folderUsecase.Delete(c.Request().Context(), userID, collectionID, folderID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return c.JSON(http.StatusNotFound, map[string]string{
+				"error": "folder not found",
+			})
+		}
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "failed to delete folder",
+		})
+	}
+
+	return c.NoContent(http.StatusNoContent)
 }
 
 func (h *Handler) ListNotes(c echo.Context) error {
@@ -703,6 +746,11 @@ func (h *Handler) CreateNote(c echo.Context) error {
 		if errors.Is(err, sql.ErrNoRows) {
 			return c.JSON(http.StatusNotFound, map[string]string{
 				"error": "collection or folder not found",
+			})
+		}
+		if errors.Is(err, noteUsecase.ErrTitleConflict) {
+			return c.JSON(http.StatusConflict, map[string]string{
+				"error": "a folder or note with the same name already exists in this location",
 			})
 		}
 		return c.JSON(http.StatusInternalServerError, map[string]string{

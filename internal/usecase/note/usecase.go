@@ -2,10 +2,13 @@ package note
 
 import (
 	"context"
+	"errors"
 
 	"github.com/k-kanke/code-stash-server/internal/domain/entity"
 	"github.com/k-kanke/code-stash-server/internal/usecase/repository"
 )
+
+var ErrTitleConflict = errors.New("note title already exists in this location")
 
 type Usecase struct {
 	repo repository.NoteRepository
@@ -51,7 +54,13 @@ func (uc *Usecase) Get(ctx context.Context, userID, noteID string) (*entity.Note
 }
 
 func (uc *Usecase) Create(ctx context.Context, in CreateInput) error {
-	return uc.repo.Create(ctx, in.UserID, in.CollectionID, in.FolderID, in.Title, in.Code, in.Language, in.Note, in.Tags)
+	if err := uc.repo.Create(ctx, in.UserID, in.CollectionID, in.FolderID, in.Title, in.Code, in.Language, in.Note, in.Tags); err != nil {
+		if errors.Is(err, repository.ErrNoteTitleConflict) {
+			return ErrTitleConflict
+		}
+		return err
+	}
+	return nil
 }
 
 func (uc *Usecase) Update(ctx context.Context, in UpdateInput) error {

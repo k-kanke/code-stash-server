@@ -152,10 +152,22 @@ WHERE EXISTS (
 	)
 )`
 
+	parentValue, parentIsNull := normalizeFolderParent(folderID)
+
+	conflict, err := hasNameConflict(ctx, r.db, collectionID, parentValue, parentIsNull, title)
+	if err != nil {
+		return err
+	}
+	if conflict {
+		return usecaseRepo.ErrNoteTitleConflict
+	}
+
 	var folder sql.NullString
-	if folderID != nil && *folderID != "" {
-		folder.Valid = true
-		folder.String = *folderID
+	if !parentIsNull {
+		if str, ok := parentValue.(string); ok {
+			folder.Valid = true
+			folder.String = str
+		}
 	}
 
 	result, err := r.db.ExecContext(
@@ -257,7 +269,19 @@ WHERE user_id = $` + strconv.Itoa(idx) + ` AND id = $` + strconv.Itoa(idx+1)
 func (r *notePGRepository) Delete(ctx context.Context, userID, noteID string) error {
 	const query = `DELETE FROM notes WHERE user_id = $1 AND id = $2`
 
-	result, err := r.db.ExecContext(ctx, query, userID, noteID)
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	if err := touchCollectionByNote(ctx, tx, userID, noteID); err != nil {
+		return err
+	}
+
+	result, err := tx.ExecContext(ctx, query, userID, noteID)
 	if err != nil {
 		return err
 	}
@@ -270,10 +294,14 @@ func (r *notePGRepository) Delete(ctx context.Context, userID, noteID string) er
 		return sql.ErrNoRows
 	}
 
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func touchCollectionByNote(ctx context.Context, db *sql.DB, userID, noteID string) error {
+func touchCollectionByNote(ctx context.Context, exec execContext, userID, noteID string) error {
 	const query = `
 UPDATE collections AS c
 SET updated_at = now()
@@ -283,7 +311,7 @@ WHERE n.id = $1
   AND n.collection_id = c.id
   AND c.user_id = $2`
 
-	result, err := db.ExecContext(ctx, query, noteID, userID)
+	result, err := exec.ExecContext(ctx, query, noteID, userID)
 	if err != nil {
 		return err
 	}

@@ -2,9 +2,12 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"github.com/k-kanke/code-stash-server/internal/domain/entity"
 )
+
+var ErrNoteTitleConflict = errors.New("note title already exists in this folder")
 
 type NoteRepository interface {
 	ListByCollection(ctx context.Context, userID, collectionID string) ([]entity.Note, error)
