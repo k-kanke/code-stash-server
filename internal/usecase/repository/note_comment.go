@@ -14,11 +14,12 @@ type NoteCommentRepository interface {
 }
 
 type CreateNoteCommentInput struct {
-	UserID    string
-	NoteID    string
-	Body      string
-	LineStart *int
-	LineEnd   *int
+	UserID          string
+	NoteID          string
+	Body            string
+	LineStart       *int
+	LineEnd         *int
+	ParentCommentID *string
 }
 
 type UpdateNoteCommentInput struct {

@@ -3,21 +3,23 @@ package dto
 import "time"
 
 type NoteComment struct {
-	ID        string    `json:"id"`
-	NoteID    string    `json:"noteId"`
-	AuthorID  string    `json:"authorId"`
-	Body      string    `json:"body"`
-	LineStart *int      `json:"lineStart,omitempty"`
-	LineEnd   *int      `json:"lineEnd,omitempty"`
-	Resolved  bool      `json:"resolved"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ID              string    `json:"id"`
+	NoteID          string    `json:"noteId"`
+	AuthorID        string    `json:"authorId"`
+	Body            string    `json:"body"`
+	LineStart       *int      `json:"lineStart,omitempty"`
+	LineEnd         *int      `json:"lineEnd,omitempty"`
+	ParentCommentID *string   `json:"parentCommentId,omitempty"`
+	Resolved        bool      `json:"resolved"`
+	CreatedAt       time.Time `json:"createdAt"`
+	UpdatedAt       time.Time `json:"updatedAt"`
 }
 
 type CreateCommentRequest struct {
-	Body      string `json:"body"`
-	LineStart *int   `json:"lineStart,omitempty"`
-	LineEnd   *int   `json:"lineEnd,omitempty"`
+	Body            string  `json:"body"`
+	LineStart       *int    `json:"lineStart,omitempty"`
+	LineEnd         *int    `json:"lineEnd,omitempty"`
+	ParentCommentID *string `json:"parentCommentId,omitempty"`
 }
 
 type UpdateCommentRequest struct {

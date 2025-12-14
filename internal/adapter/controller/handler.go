@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 
@@ -516,12 +517,21 @@ func (h *Handler) CreateNoteComment(c echo.Context) error {
 		})
 	}
 
+	var parentCommentID *string
+	if req.ParentCommentID != nil {
+		parent := strings.TrimSpace(*req.ParentCommentID)
+		if parent != "" {
+			parentCommentID = &parent
+		}
+	}
+
 	comment, err := h.commentUsecase.Create(c.Request().Context(), noteUsecase.CommentCreateInput{
-		UserID:   userID,
-		NoteID:   noteID,
-		Body:     req.Body,
-		LineStart: req.LineStart,
-		LineEnd:   req.LineEnd,
+		UserID:          userID,
+		NoteID:          noteID,
+		Body:            req.Body,
+		LineStart:       req.LineStart,
+		LineEnd:         req.LineEnd,
+		ParentCommentID: parentCommentID,
 	})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -529,6 +539,7 @@ func (h *Handler) CreateNoteComment(c echo.Context) error {
 				"error": "note not found",
 			})
 		}
+		log.Printf("failed to create comment: %v", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "failed to create comment",
 		})
@@ -704,15 +715,16 @@ func (h *Handler) CreateNote(c echo.Context) error {
 
 func toCommentDTO(comment entity.NoteComment) dto.NoteComment {
 	return dto.NoteComment{
-		ID:        comment.ID,
-		NoteID:    comment.NoteID,
-		AuthorID:  comment.AuthorID,
-		Body:      comment.Body,
-		LineStart: comment.LineStart,
-		LineEnd:   comment.LineEnd,
-		Resolved:  comment.Resolved,
-		CreatedAt: comment.CreatedAt,
-		UpdatedAt: comment.UpdatedAt,
+		ID:              comment.ID,
+		NoteID:          comment.NoteID,
+		AuthorID:        comment.AuthorID,
+		Body:            comment.Body,
+		LineStart:       comment.LineStart,
+		LineEnd:         comment.LineEnd,
+		ParentCommentID: comment.ParentCommentID,
+		Resolved:        comment.Resolved,
+		CreatedAt:       comment.CreatedAt,
+		UpdatedAt:       comment.UpdatedAt,
 	}
 }
 

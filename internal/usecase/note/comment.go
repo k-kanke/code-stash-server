@@ -20,20 +20,22 @@ func (uc *CommentUsecase) ListByNote(ctx context.Context, userID, noteID string)
 }
 
 type CommentCreateInput struct {
-	UserID    string
-	NoteID    string
-	Body      string
-	LineStart *int
-	LineEnd   *int
+	UserID          string
+	NoteID          string
+	Body            string
+	LineStart       *int
+	LineEnd         *int
+	ParentCommentID *string
 }
 
 func (uc *CommentUsecase) Create(ctx context.Context, in CommentCreateInput) (*entity.NoteComment, error) {
 	payload := repository.CreateNoteCommentInput{
-		UserID:    in.UserID,
-		NoteID:    in.NoteID,
-		Body:      in.Body,
-		LineStart: in.LineStart,
-		LineEnd:   in.LineEnd,
+		UserID:          in.UserID,
+		NoteID:          in.NoteID,
+		Body:            in.Body,
+		LineStart:       in.LineStart,
+		LineEnd:         in.LineEnd,
+		ParentCommentID: in.ParentCommentID,
 	}
 	return uc.repo.Create(ctx, payload)
 }

@@ -29,6 +29,7 @@ SELECT
 	c.body,
 	c.line_start,
 	c.line_end,
+	c.parent_comment_id,
 	c.resolved,
 	c.created_at,
 	c.updated_at
@@ -48,6 +49,7 @@ ORDER BY c.created_at ASC`
 		var comment entity.NoteComment
 		var lineStart sql.NullInt32
 		var lineEnd sql.NullInt32
+		var parentComment sql.NullString
 		if err := rows.Scan(
 			&comment.ID,
 			&comment.NoteID,
@@ -55,6 +57,7 @@ ORDER BY c.created_at ASC`
 			&comment.Body,
 			&lineStart,
 			&lineEnd,
+			&parentComment,
 			&comment.Resolved,
 			&comment.CreatedAt,
 			&comment.UpdatedAt,
@@ -69,6 +72,10 @@ ORDER BY c.created_at ASC`
 			v := int(lineEnd.Int32)
 			comment.LineEnd = &v
 		}
+		if parentComment.Valid {
+			v := parentComment.String
+			comment.ParentCommentID = &v
+		}
 		comments = append(comments, comment)
 	}
 
@@ -81,11 +88,20 @@ ORDER BY c.created_at ASC`
 
 func (r *noteCommentPGRepository) Create(ctx context.Context, in usecaseRepo.CreateNoteCommentInput) (*entity.NoteComment, error) {
 	const query = `
-INSERT INTO note_comments (id, note_id, author_id, body, line_start, line_end)
-SELECT $1, $2, $3, $4, $5, $6
+INSERT INTO note_comments (id, note_id, author_id, body, line_start, line_end, parent_comment_id)
+SELECT $1, $2, $3, $4, $5, $6, $7::uuid
 FROM notes n
-WHERE n.id = $2 AND n.user_id = $3
-RETURNING id, note_id, author_id, body, line_start, line_end, resolved, created_at, updated_at`
+WHERE n.id = $2
+  AND n.user_id = $3
+  AND (
+    $7::uuid IS NULL OR EXISTS (
+      SELECT 1 FROM note_comments pc
+      WHERE pc.id = $7::uuid
+        AND pc.note_id = n.id
+        AND pc.parent_comment_id IS NULL
+    )
+  )
+RETURNING id, note_id, author_id, body, line_start, line_end, parent_comment_id, resolved, created_at, updated_at`
 
 	lineStart := sql.NullInt32{}
 	if in.LineStart != nil {
@@ -103,6 +119,13 @@ RETURNING id, note_id, author_id, body, line_start, line_end, resolved, created_
 	var comment entity.NoteComment
 	var insertedLineStart sql.NullInt32
 	var insertedLineEnd sql.NullInt32
+	var insertedParent sql.NullString
+
+	parent := sql.NullString{}
+	if in.ParentCommentID != nil && *in.ParentCommentID != "" {
+		parent.Valid = true
+		parent.String = *in.ParentCommentID
+	}
 
 	err := r.db.QueryRowContext(
 		ctx,
@@ -113,6 +136,7 @@ RETURNING id, note_id, author_id, body, line_start, line_end, resolved, created_
 		in.Body,
 		lineStart,
 		lineEnd,
+		parent,
 	).Scan(
 		&comment.ID,
 		&comment.NoteID,
@@ -120,6 +144,7 @@ RETURNING id, note_id, author_id, body, line_start, line_end, resolved, created_
 		&comment.Body,
 		&insertedLineStart,
 		&insertedLineEnd,
+		&insertedParent,
 		&comment.Resolved,
 		&comment.CreatedAt,
 		&comment.UpdatedAt,
@@ -135,6 +160,10 @@ RETURNING id, note_id, author_id, body, line_start, line_end, resolved, created_
 	if insertedLineEnd.Valid {
 		v := int(insertedLineEnd.Int32)
 		comment.LineEnd = &v
+	}
+	if insertedParent.Valid {
+		val := insertedParent.String
+		comment.ParentCommentID = &val
 	}
 
 	return &comment, nil
@@ -175,13 +204,14 @@ FROM notes n
 WHERE c.note_id = n.id
   AND n.user_id = $` + strconv.Itoa(idx) + `
   AND c.id = $` + strconv.Itoa(idx+1) + `
-RETURNING c.id, c.note_id, c.author_id, c.body, c.line_start, c.line_end, c.resolved, c.created_at, c.updated_at`
+RETURNING c.id, c.note_id, c.author_id, c.body, c.line_start, c.line_end, c.parent_comment_id, c.resolved, c.created_at, c.updated_at`
 
 	args = append(args, in.UserID, in.CommentID)
 
 	var updated entity.NoteComment
 	var lineStart sql.NullInt32
 	var lineEnd sql.NullInt32
+	var parent sql.NullString
 
 	err := r.db.QueryRowContext(ctx, query, args...).Scan(
 		&updated.ID,
@@ -190,6 +220,7 @@ RETURNING c.id, c.note_id, c.author_id, c.body, c.line_start, c.line_end, c.reso
 		&updated.Body,
 		&lineStart,
 		&lineEnd,
+		&parent,
 		&updated.Resolved,
 		&updated.CreatedAt,
 		&updated.UpdatedAt,
@@ -205,6 +236,12 @@ RETURNING c.id, c.note_id, c.author_id, c.body, c.line_start, c.line_end, c.reso
 	if lineEnd.Valid {
 		v := int(lineEnd.Int32)
 		updated.LineEnd = &v
+	}
+	if parent.Valid {
+		val := parent.String
+		updated.ParentCommentID = &val
+	} else {
+		updated.ParentCommentID = nil
 	}
 
 	return &updated, nil

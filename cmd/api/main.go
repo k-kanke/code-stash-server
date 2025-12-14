@@ -29,9 +29,7 @@ func main() {
 
 	e := echo.New()
 	e.HideBanner = true
-	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
-		Format: "${time_rfc3339} | ${method} ${uri} | status=${status} latency=${latency_human}\n",
-	}))
+	e.Use(middleware.Logger())
 	router.RegisterRouter(e, handler)
 
 	addr := getEnv("API_ADDR", ":8085")
