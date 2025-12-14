@@ -26,6 +26,7 @@ type FolderUsecase interface {
 	List(ctx context.Context, userID, collectionID string) ([]entity.Folder, error)
 	Create(ctx context.Context, userID, collectionID string, parentFolderID *string, name string) error
 	Delete(ctx context.Context, userID, collectionID, folderID string) error
+	Rename(ctx context.Context, userID, collectionID, folderID, name string) error
 }
 
 type NoteUsecase interface {
@@ -250,6 +251,61 @@ func (h *Handler) CreateFolder(c echo.Context) error {
 	}
 
 	return c.NoContent(http.StatusCreated)
+}
+
+func (h *Handler) UpdateFolder(c echo.Context) error {
+	userID := c.QueryParam("user_id")
+	if userID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "user_id is required",
+		})
+	}
+
+	collectionID := strings.TrimSpace(c.Param("id"))
+	if collectionID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "collection id is required",
+		})
+	}
+
+	folderID := strings.TrimSpace(c.Param("folderId"))
+	if folderID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "folder id is required",
+		})
+	}
+
+	var req dto.UpdateFolderRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "invalid request body",
+		})
+	}
+
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "name is required",
+		})
+	}
+
+	if err := h.folderUsecase.Rename(c.Request().Context(), userID, collectionID, folderID, name); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return c.JSON(http.StatusNotFound, map[string]string{
+				"error": "folder not found",
+			})
+		}
+		if errors.Is(err, folderUsecase.ErrNameConflict) {
+			return c.JSON(http.StatusConflict, map[string]string{
+				"error": "a folder or note with the same name already exists in this location",
+			})
+		}
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "failed to rename folder",
+		})
+	}
+
+	return c.NoContent(http.StatusNoContent)
 }
 
 func (h *Handler) DeleteFolder(c echo.Context) error {

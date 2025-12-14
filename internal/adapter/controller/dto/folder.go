@@ -16,3 +16,7 @@ type CreateFolderRequest struct {
 	ParentFolderID *string `json:"parent_folder_id"`
 	Name           string  `json:"name" validate:"required"`
 }
+
+type UpdateFolderRequest struct {
+	Name string `json:"name" validate:"required"`
+}

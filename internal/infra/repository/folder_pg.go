@@ -173,6 +173,65 @@ WHERE collection_id = $2
 	return nil
 }
 
+func (r *folderPGRepository) UpdateName(ctx context.Context, userID, collectionID, folderID, name string) error {
+	const selectParent = `
+SELECT
+	f.parent_folder_id,
+	f.name
+FROM folders f
+INNER JOIN collections c ON c.id = f.collection_id
+WHERE f.id = $1 AND f.collection_id = $2 AND c.user_id = $3`
+
+	var parent sql.NullString
+	var currentName string
+	if err := r.db.QueryRowContext(ctx, selectParent, folderID, collectionID, userID).Scan(&parent, &currentName); err != nil {
+		return err
+	}
+
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" || trimmed == currentName {
+		return nil
+	}
+
+	parentValue := any(nil)
+	parentIsNull := true
+	if parent.Valid {
+		parentValue = parent.String
+		parentIsNull = false
+	}
+
+	conflict, err := hasNameConflict(ctx, r.db, collectionID, parentValue, parentIsNull, trimmed)
+	if err != nil {
+		return err
+	}
+	if conflict {
+		return usecaseRepo.ErrFolderNameConflict
+	}
+
+	const update = `
+UPDATE folders
+SET name = $1, updated_at = now()
+WHERE id = $2 AND collection_id = $3
+  AND EXISTS (
+    SELECT 1 FROM collections WHERE id = $3 AND user_id = $4
+  )`
+
+	result, err := r.db.ExecContext(ctx, update, trimmed, folderID, collectionID, userID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	return touchCollection(ctx, r.db, userID, collectionID)
+}
+
 func touchCollection(ctx context.Context, exec execContext, userID, collectionID string) error {
 	const update = `UPDATE collections SET updated_at = now() WHERE user_id = $1 AND id = $2`
 	_, err := exec.ExecContext(ctx, update, userID, collectionID)
