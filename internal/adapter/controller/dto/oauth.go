@@ -28,3 +28,18 @@ type DeviceCodeStatusResponse struct {
 	ExpiresAt  string   `json:"expires_at"`
 	Interval   int      `json:"interval"`
 }
+
+type TokenRequest struct {
+	GrantType    string `json:"grant_type"`
+	DeviceCode   string `json:"device_code"`
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
+}
+
+type TokenResponse struct {
+	AccessToken  string  `json:"access_token"`
+	TokenType    string  `json:"token_type"`
+	ExpiresIn    int     `json:"expires_in"`
+	RefreshToken *string `json:"refresh_token,omitempty"`
+	Scope        string  `json:"scope,omitempty"`
+}

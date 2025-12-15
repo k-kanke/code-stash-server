@@ -41,7 +41,8 @@ func main() {
 		log.Fatalf("JWT_SECRET is not set")
 	}
 
-	tokenService, err := service.NewTokenService(secret, "codestash-api", 24*time.Hour)
+	tokenTTL := 24 * time.Hour
+	tokenService, err := service.NewTokenService(secret, "codestash-api", tokenTTL)
 	if err != nil {
 		log.Fatalf("failed to create token service: %v", err)
 	}
@@ -53,6 +54,7 @@ func main() {
 
 	oauthClientRepo := infraRepo.NewOAuthClientPGRepository(db)
 	deviceCodeRepo := infraRepo.NewDeviceCodePGRepository(db)
+	oauthTokenRepo := infraRepo.NewOAuthTokenPGRepository(db)
 
 	deviceCodeConfig := oauth.DeviceCodeConfig{
 		VerificationURI: getEnv("OAUTH_DEVICE_VERIFICATION_URI", "http://localhost:3000/device"),
@@ -65,7 +67,21 @@ func main() {
 		log.Fatalf("failed to create device code usecase: %v", err)
 	}
 
-	oauthHandler := controller.NewOAuthHandler(deviceCodeUsecase)
+	tokenExchangeUsecase := oauth.NewTokenExchangeUsecase(
+		oauthClientRepo,
+		deviceCodeRepo,
+		oauthTokenRepo,
+		tokenService,
+		oauth.TokenExchangeConfig{
+			AccessTokenTTL:    tokenTTL,
+			RefreshTokenBytes: 32,
+		},
+	)
+
+	oauthHandler := controller.NewOAuthHandler(controller.OAuthHandlerDependencies{
+		DeviceCodeUsecase: deviceCodeUsecase,
+		TokenUsecase:      tokenExchangeUsecase,
+	})
 
 	e := echo.New()
 	e.HideBanner = true

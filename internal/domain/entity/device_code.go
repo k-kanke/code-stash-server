@@ -9,6 +9,7 @@ const (
 	DeviceCodeStatusApproved DeviceCodeStatus = "approved"
 	DeviceCodeStatusDenied   DeviceCodeStatus = "denied"
 	DeviceCodeStatusExpired  DeviceCodeStatus = "expired"
+	DeviceCodeStatusConsumed DeviceCodeStatus = "consumed"
 )
 
 type DeviceCode struct {

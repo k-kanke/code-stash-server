@@ -64,39 +64,7 @@ func mapDeviceCodeError(err error) error {
 }
 
 func (r *deviceCodePGRepository) FindByUserCode(ctx context.Context, userCode string) (*entity.DeviceCode, error) {
-	const query = `
-SELECT device_code, user_code, client_id, user_id, scope, status, expires_at, interval_sec, created_at, updated_at
-FROM device_codes
-WHERE user_code = $1`
-
-	var code entity.DeviceCode
-	var scope pq.StringArray
-	var userID sql.NullString
-
-	err := r.db.QueryRowContext(ctx, query, userCode).Scan(
-		&code.DeviceCode,
-		&code.UserCode,
-		&code.ClientID,
-		&userID,
-		&scope,
-		&code.Status,
-		&code.ExpiresAt,
-		&code.IntervalSec,
-		&code.CreatedAt,
-		&code.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	if userID.Valid {
-		code.UserID = &userID.String
-	}
-	if scope != nil {
-		code.Scope = append([]string(nil), scope...)
-	}
-
-	return &code, nil
+	return r.findOne(ctx, "user_code = $1", userCode)
 }
 
 func (r *deviceCodePGRepository) UpdateStatus(ctx context.Context, deviceCode string, from, to entity.DeviceCodeStatus, userID *string) (bool, error) {
@@ -121,4 +89,44 @@ WHERE device_code = $1 AND status = $2`
 	}
 
 	return rows > 0, nil
+}
+
+func (r *deviceCodePGRepository) FindByDeviceCode(ctx context.Context, deviceCode string) (*entity.DeviceCode, error) {
+	return r.findOne(ctx, "device_code = $1", deviceCode)
+}
+
+func (r *deviceCodePGRepository) findOne(ctx context.Context, where string, arg any) (*entity.DeviceCode, error) {
+	query := `
+SELECT device_code, user_code, client_id, user_id, scope, status, expires_at, interval_sec, created_at, updated_at
+FROM device_codes
+WHERE ` + where
+
+	var code entity.DeviceCode
+	var scope pq.StringArray
+	var userID sql.NullString
+
+	err := r.db.QueryRowContext(ctx, query, arg).Scan(
+		&code.DeviceCode,
+		&code.UserCode,
+		&code.ClientID,
+		&userID,
+		&scope,
+		&code.Status,
+		&code.ExpiresAt,
+		&code.IntervalSec,
+		&code.CreatedAt,
+		&code.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if userID.Valid {
+		code.UserID = &userID.String
+	}
+	if scope != nil {
+		code.Scope = append([]string(nil), scope...)
+	}
+
+	return &code, nil
 }

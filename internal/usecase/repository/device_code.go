@@ -11,6 +11,7 @@ type DeviceCodeRepository interface {
 	Create(ctx context.Context, code entity.DeviceCode) error
 	FindByUserCode(ctx context.Context, userCode string) (*entity.DeviceCode, error)
 	UpdateStatus(ctx context.Context, deviceCode string, from, to entity.DeviceCodeStatus, userID *string) (bool, error)
+	FindByDeviceCode(ctx context.Context, deviceCode string) (*entity.DeviceCode, error)
 }
 
 var (

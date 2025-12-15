@@ -14,6 +14,7 @@ func RegisterRouter(e *echo.Echo, h *controller.Handler, auth *controller.AuthHa
 
 	oauthGroup := e.Group("/oauth")
 	oauthGroup.POST("/device/code", oauth.CreateDeviceCode)
+	oauthGroup.POST("/token", oauth.ExchangeToken)
 	oauthProtected := oauthGroup.Group("")
 	oauthProtected.Use(authMiddleware)
 	oauthProtected.GET("/device/verify", oauth.GetDeviceCodeStatus)

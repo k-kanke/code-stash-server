@@ -14,10 +14,19 @@ import (
 
 type OAuthHandler struct {
 	deviceCodeUsecase *oauth.DeviceCodeUsecase
+	tokenUsecase      *oauth.TokenExchangeUsecase
 }
 
-func NewOAuthHandler(usecase *oauth.DeviceCodeUsecase) *OAuthHandler {
-	return &OAuthHandler{deviceCodeUsecase: usecase}
+type OAuthHandlerDependencies struct {
+	DeviceCodeUsecase *oauth.DeviceCodeUsecase
+	TokenUsecase      *oauth.TokenExchangeUsecase
+}
+
+func NewOAuthHandler(deps OAuthHandlerDependencies) *OAuthHandler {
+	return &OAuthHandler{
+		deviceCodeUsecase: deps.DeviceCodeUsecase,
+		tokenUsecase:      deps.TokenUsecase,
+	}
 }
 
 func (h *OAuthHandler) CreateDeviceCode(c echo.Context) error {
@@ -147,5 +156,54 @@ func buildDeviceCodeStatusResponse(result *oauth.DeviceCodeStatusResult) dto.Dev
 		Status:     string(result.Status),
 		ExpiresAt:  expiresAt,
 		Interval:   result.IntervalSec,
+	}
+}
+
+func (h *OAuthHandler) ExchangeToken(c echo.Context) error {
+	var req dto.TokenRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid_request"})
+	}
+
+	result, err := h.tokenUsecase.ExchangeDeviceCode(c.Request().Context(), oauth.DeviceCodeGrantInput{
+		GrantType:    req.GrantType,
+		ClientID:     req.ClientID,
+		ClientSecret: req.ClientSecret,
+		DeviceCode:   req.DeviceCode,
+	})
+	if err != nil {
+		return h.handleTokenError(c, err)
+	}
+
+	scope := strings.Join(result.Scope, " ")
+	resp := dto.TokenResponse{
+		AccessToken:  result.AccessToken,
+		TokenType:    result.TokenType,
+		ExpiresIn:    int(result.ExpiresIn.Seconds()),
+		RefreshToken: result.RefreshToken,
+	}
+	if scope != "" {
+		resp.Scope = scope
+	}
+
+	return c.JSON(http.StatusOK, resp)
+}
+
+func (h *OAuthHandler) handleTokenError(c echo.Context, err error) error {
+	switch {
+	case errors.Is(err, oauth.ErrUnsupportedGrantType):
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "unsupported_grant_type"})
+	case errors.Is(err, oauth.ErrInvalidClientID), errors.Is(err, oauth.ErrInvalidClientSecret):
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid_client"})
+	case errors.Is(err, oauth.ErrInvalidDeviceCodeGrant), errors.Is(err, oauth.ErrDeviceCodeAlreadyUsed):
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid_grant"})
+	case errors.Is(err, oauth.ErrAuthorizationPending):
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "authorization_pending"})
+	case errors.Is(err, oauth.ErrAccessDenied):
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "access_denied"})
+	case errors.Is(err, oauth.ErrDeviceCodeExpired):
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "expired_token"})
+	default:
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "server_error"})
 	}
 }
