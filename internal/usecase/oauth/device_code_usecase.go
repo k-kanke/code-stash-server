@@ -30,6 +30,10 @@ var (
 	ErrClientNotAllowed      = errors.New("client cannot use device authorization grant")
 	ErrGenerationConflicted  = errors.New("device_code generation conflicted repeatedly")
 	ErrVerificationURIAbsent = errors.New("verification uri is required")
+	ErrUserCodeRequired      = errors.New("user_code is required")
+	ErrDeviceCodeNotFound    = errors.New("device code not found")
+	ErrDeviceCodeExpired     = errors.New("device code expired")
+	ErrDeviceCodeNotPending  = errors.New("device code is not pending")
 )
 
 type DeviceCodeInput struct {
@@ -44,6 +48,17 @@ type DeviceCodeResult struct {
 	VerificationURIComplete string
 	ExpiresIn               time.Duration
 	IntervalSec             int
+}
+
+type DeviceCodeStatusResult struct {
+	DeviceCode  string
+	UserCode    string
+	ClientID    string
+	ClientName  string
+	Scope       []string
+	Status      entity.DeviceCodeStatus
+	ExpiresAt   time.Time
+	IntervalSec int
 }
 
 type DeviceCodeConfig struct {
@@ -233,4 +248,100 @@ func secondsOrOne(d time.Duration) int {
 		return 1
 	}
 	return sec
+}
+
+func (uc *DeviceCodeUsecase) DescribeDeviceCode(ctx context.Context, userCode string) (*DeviceCodeStatusResult, error) {
+	record, client, err := uc.loadDeviceCode(ctx, userCode)
+	if err != nil {
+		return nil, err
+	}
+
+	return uc.buildStatus(record, client), nil
+}
+
+func (uc *DeviceCodeUsecase) ApproveDeviceCode(ctx context.Context, userCode, userID string) (*DeviceCodeStatusResult, error) {
+	record, client, err := uc.loadDeviceCode(ctx, userCode)
+	if err != nil {
+		return nil, err
+	}
+
+	if uc.isExpired(record) {
+		return nil, ErrDeviceCodeExpired
+	}
+	if record.Status != entity.DeviceCodeStatusPending {
+		return nil, ErrDeviceCodeNotPending
+	}
+
+	if strings.TrimSpace(userID) == "" {
+		return nil, errors.New("user id is required")
+	}
+
+	ok, err := uc.codeRepo.UpdateStatus(
+		ctx,
+		record.DeviceCode,
+		entity.DeviceCodeStatusPending,
+		entity.DeviceCodeStatusApproved,
+		&userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, ErrDeviceCodeNotPending
+	}
+
+	record.Status = entity.DeviceCodeStatusApproved
+	record.UserID = &userID
+
+	return uc.buildStatus(record, client), nil
+}
+
+func (uc *DeviceCodeUsecase) loadDeviceCode(ctx context.Context, userCode string) (*entity.DeviceCode, *entity.OAuthClient, error) {
+	code := strings.TrimSpace(userCode)
+	if code == "" {
+		return nil, nil, ErrUserCodeRequired
+	}
+
+	record, err := uc.codeRepo.FindByUserCode(ctx, code)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil, ErrDeviceCodeNotFound
+		}
+		return nil, nil, err
+	}
+
+	client, err := uc.clientRepo.FindByID(ctx, record.ClientID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil, ErrClientNotFound
+		}
+		return nil, nil, err
+	}
+
+	return record, client, nil
+}
+
+func (uc *DeviceCodeUsecase) buildStatus(code *entity.DeviceCode, client *entity.OAuthClient) *DeviceCodeStatusResult {
+	status := code.Status
+	if status == entity.DeviceCodeStatusPending && uc.isExpired(code) {
+		status = entity.DeviceCodeStatusExpired
+	}
+
+	return &DeviceCodeStatusResult{
+		DeviceCode:  code.DeviceCode,
+		UserCode:    code.UserCode,
+		ClientID:    code.ClientID,
+		ClientName:  client.Name,
+		Scope:       append([]string(nil), code.Scope...),
+		Status:      status,
+		ExpiresAt:   code.ExpiresAt,
+		IntervalSec: code.IntervalSec,
+	}
+}
+
+func (uc *DeviceCodeUsecase) isExpired(code *entity.DeviceCode) bool {
+	if code == nil {
+		return true
+	}
+	return !code.ExpiresAt.IsZero() && !uc.now().Before(code.ExpiresAt)
 }
