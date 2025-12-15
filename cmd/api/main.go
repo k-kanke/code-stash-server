@@ -18,6 +18,7 @@ import (
 	infraRepo "github.com/k-kanke/code-stash-server/internal/infra/repository"
 	"github.com/k-kanke/code-stash-server/internal/infra/router"
 	authusecase "github.com/k-kanke/code-stash-server/internal/usecase"
+	"github.com/k-kanke/code-stash-server/internal/usecase/oauth"
 )
 
 func main() {
@@ -50,10 +51,27 @@ func main() {
 		TokenService: tokenService,
 	})
 
+	oauthClientRepo := infraRepo.NewOAuthClientPGRepository(db)
+	deviceCodeRepo := infraRepo.NewDeviceCodePGRepository(db)
+
+	deviceCodeConfig := oauth.DeviceCodeConfig{
+		VerificationURI: getEnv("OAUTH_DEVICE_VERIFICATION_URI", "http://localhost:3000/device"),
+		CodeTTL:         10 * time.Minute,
+		PollInterval:    5 * time.Second,
+	}
+
+	deviceCodeUsecase, err := oauth.NewDeviceCodeUsecase(oauthClientRepo, deviceCodeRepo, deviceCodeConfig)
+	if err != nil {
+		log.Fatalf("failed to create device code usecase: %v", err)
+	}
+
+	oauthHandler := controller.NewOAuthHandler(deviceCodeUsecase)
+
 	e := echo.New()
 	e.HideBanner = true
 	e.Use(middleware.Logger())
-	router.RegisterRouter(e, handler, authHandler, appInfra.NewAuthMiddleware(tokenService))
+	authMiddleware := appInfra.NewAuthMiddleware(tokenService)
+	router.RegisterRouter(e, handler, authHandler, oauthHandler, authMiddleware)
 
 	addr := getEnv("API_ADDR", ":8085")
 	if err := e.Start(addr); err != nil {

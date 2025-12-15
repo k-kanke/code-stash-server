@@ -6,11 +6,14 @@ import (
 	"github.com/k-kanke/code-stash-server/internal/adapter/controller"
 )
 
-func RegisterRouter(e *echo.Echo, h *controller.Handler, auth *controller.AuthHandler, authMiddleware echo.MiddlewareFunc) {
+func RegisterRouter(e *echo.Echo, h *controller.Handler, auth *controller.AuthHandler, oauth *controller.OAuthHandler, authMiddleware echo.MiddlewareFunc) {
 	api := e.Group("/api")
 
 	api.POST("/auth/register", auth.Register)
 	api.POST("/auth/login", auth.Login)
+
+	oauthGroup := e.Group("/oauth")
+	oauthGroup.POST("/device/code", oauth.CreateDeviceCode)
 
 	protected := api.Group("")
 	protected.Use(authMiddleware)

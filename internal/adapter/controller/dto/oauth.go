@@ -1,0 +1,15 @@
+package dto
+
+type DeviceCodeRequest struct {
+	ClientID string `json:"client_id"`
+	Scope    string `json:"scope"`
+}
+
+type DeviceCodeResponse struct {
+	DeviceCode              string `json:"device_code"`
+	UserCode                string `json:"user_code"`
+	VerificationURI         string `json:"verification_uri"`
+	VerificationURIComplete string `json:"verification_uri_complete,omitempty"`
+	ExpiresIn               int    `json:"expires_in"`
+	Interval                int    `json:"interval"`
+}
