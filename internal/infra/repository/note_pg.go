@@ -140,7 +140,7 @@ WHERE n.user_id = $1 AND n.id = $2`
 	return &note, nil
 }
 
-func (r *notePGRepository) Create(ctx context.Context, userID, collectionID string, folderID *string, title, code, language, noteBody string, tags []string) error {
+func (r *notePGRepository) Create(ctx context.Context, userID, collectionID string, folderID *string, title, code, language, noteBody string, tags []string) (string, error) {
 	const query = `
 INSERT INTO notes (id, collection_id, folder_id, user_id, title, code, language, note, tags)
 SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9
@@ -156,10 +156,10 @@ WHERE EXISTS (
 
 	conflict, err := hasNameConflict(ctx, r.db, collectionID, parentValue, parentIsNull, title)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if conflict {
-		return usecaseRepo.ErrNoteTitleConflict
+		return "", usecaseRepo.ErrNoteTitleConflict
 	}
 
 	var folder sql.NullString
@@ -170,10 +170,11 @@ WHERE EXISTS (
 		}
 	}
 
+	noteID := uuid.NewString()
 	result, err := r.db.ExecContext(
 		ctx,
 		query,
-		uuid.NewString(),
+		noteID,
 		collectionID,
 		folder,
 		userID,
@@ -184,18 +185,21 @@ WHERE EXISTS (
 		pq.Array(tags),
 	)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	rows, err := result.RowsAffected()
 	if err != nil {
-		return err
+		return "", err
 	}
 	if rows == 0 {
-		return sql.ErrNoRows
+		return "", sql.ErrNoRows
 	}
 
-	return touchCollection(ctx, r.db, userID, collectionID)
+	if err := touchCollection(ctx, r.db, userID, collectionID); err != nil {
+		return "", err
+	}
+	return noteID, nil
 }
 
 func (r *notePGRepository) Update(ctx context.Context, userID, noteID string, update usecaseRepo.NoteUpdate) error {

@@ -33,7 +33,7 @@ type FolderUsecase interface {
 type NoteUsecase interface {
 	List(ctx context.Context, userID, collectionID string) ([]entity.Note, error)
 	Get(ctx context.Context, userID, noteID string) (*entity.Note, error)
-	Create(ctx context.Context, in noteUsecase.CreateInput) error
+	Create(ctx context.Context, in noteUsecase.CreateInput) (string, error)
 	Update(ctx context.Context, in noteUsecase.UpdateInput) error
 	Delete(ctx context.Context, in noteUsecase.DeleteInput) error
 }
@@ -767,7 +767,8 @@ func (h *Handler) CreateNote(c echo.Context) error {
 		Tags:         req.Tags,
 	}
 
-	if err := h.noteUsecase.Create(c.Request().Context(), in); err != nil {
+	noteID, err := h.noteUsecase.Create(c.Request().Context(), in)
+	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return c.JSON(http.StatusNotFound, map[string]string{
 				"error": "collection or folder not found",
@@ -783,7 +784,7 @@ func (h *Handler) CreateNote(c echo.Context) error {
 		})
 	}
 
-	return c.NoContent(http.StatusCreated)
+	return c.JSON(http.StatusCreated, map[string]string{"id": noteID})
 }
 
 func toCommentDTO(comment entity.NoteComment) dto.NoteComment {

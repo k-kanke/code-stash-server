@@ -53,14 +53,15 @@ func (uc *Usecase) Get(ctx context.Context, userID, noteID string) (*entity.Note
 	return uc.repo.Get(ctx, userID, noteID)
 }
 
-func (uc *Usecase) Create(ctx context.Context, in CreateInput) error {
-	if err := uc.repo.Create(ctx, in.UserID, in.CollectionID, in.FolderID, in.Title, in.Code, in.Language, in.Note, in.Tags); err != nil {
+func (uc *Usecase) Create(ctx context.Context, in CreateInput) (string, error) {
+	id, err := uc.repo.Create(ctx, in.UserID, in.CollectionID, in.FolderID, in.Title, in.Code, in.Language, in.Note, in.Tags)
+	if err != nil {
 		if errors.Is(err, repository.ErrNoteTitleConflict) {
-			return ErrTitleConflict
+			return "", ErrTitleConflict
 		}
-		return err
+		return "", err
 	}
-	return nil
+	return id, nil
 }
 
 func (uc *Usecase) Update(ctx context.Context, in UpdateInput) error {
