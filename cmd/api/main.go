@@ -9,6 +9,7 @@ import (
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
@@ -22,6 +23,10 @@ import (
 )
 
 func main() {
+	if err := loadEnv(); err != nil {
+		log.Fatalf("failed to load environment variables: %v", err)
+	}
+
 	db, err := newDB()
 	if err != nil {
 		log.Fatalf("failed to init database: %v", err)
@@ -127,4 +132,19 @@ func getEnv(key, fallback string) string {
 		return val
 	}
 	return fallback
+}
+
+func loadEnv() error {
+	if _, err := os.Stat(".env"); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	if err := godotenv.Load(); err != nil {
+		return err
+	}
+
+	return nil
 }
