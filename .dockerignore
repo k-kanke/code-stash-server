@@ -1,0 +1,15 @@
+.git
+.gitignore
+*.env
+
+# Terraform artifacts and local state
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# OS cruft
+.DS_Store
+
+# Local build output directories
+bin/
+dist/
