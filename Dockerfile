@@ -7,7 +7,7 @@ RUN go mod download
 
 COPY cmd ./cmd
 COPY internal ./internal
-RUN CGO_ENABLED=0 GOOS=linux go build -o server ./cmd/...
+RUN CGO_ENABLED=0 GOOS=linux go build -o server ./cmd/api
 
 FROM gcr.io/distroless/static-debian12
 COPY --from=builder /app/server /app/server
