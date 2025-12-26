@@ -21,7 +21,7 @@ resource "aws_vpc" "code_stash_vpc" {
   }
 }
 
-# Internet Gateway
+# インターネットゲートウェイ
 resource "aws_internet_gateway" "code_stash_gw" {
   vpc_id = aws_vpc.code_stash_vpc.id
 
