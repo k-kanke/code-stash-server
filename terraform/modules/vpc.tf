@@ -62,7 +62,7 @@ resource "aws_subnet" "code_stash_private_subnet" {
   }
 }
 
-# NATゲートウェイ
+# NAT Gateway
 resource "aws_nat_gateway" "code_stash_ngw_a" {
   allocation_id = aws_eip.code_stash_nat_eip_a.id
   subnet_id     = aws_subnet.code_stash_public_subnet["a"].id
