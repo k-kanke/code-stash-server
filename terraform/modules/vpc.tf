@@ -37,7 +37,7 @@ resource "aws_eip" "code_stash_nat_eip_a" {
   }
 }
 
-# パブリックサブネット
+# Public Subnet
 resource "aws_subnet" "code_stash_public_subnet" {
   for_each                = local.public_subnets
   vpc_id                  = aws_vpc.code_stash_vpc.id
@@ -50,7 +50,7 @@ resource "aws_subnet" "code_stash_public_subnet" {
   }
 }
 
-# プライベートサブネット
+# Private Subnet
 resource "aws_subnet" "code_stash_private_subnet" {
   for_each          = local.private_subnets
   vpc_id            = aws_vpc.code_stash_vpc.id
