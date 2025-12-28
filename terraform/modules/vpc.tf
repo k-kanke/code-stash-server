@@ -72,7 +72,7 @@ resource "aws_nat_gateway" "code_stash_ngw_a" {
   }
 }
 
-# パブリックルートテーブル
+# Public Route Table
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.code_stash_vpc.id
 
@@ -92,7 +92,7 @@ resource "aws_route_table_association" "public_a" {
   route_table_id = aws_route_table.public.id
 }
 
-# プライベートルートテーブル
+# Private Route Table
 resource "aws_route_table" "private_a" {
   vpc_id = aws_vpc.code_stash_vpc.id
 
