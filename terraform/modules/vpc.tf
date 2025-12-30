@@ -86,7 +86,7 @@ resource "aws_route_table" "public" {
   }
 }
 
-# パブリックサブネットへの関連付け
+# Attach to Public Subnet
 resource "aws_route_table_association" "public_a" {
   subnet_id      = aws_subnet.code_stash_public_subnet["a"].id
   route_table_id = aws_route_table.public.id
