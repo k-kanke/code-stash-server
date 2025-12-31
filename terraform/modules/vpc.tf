@@ -106,7 +106,7 @@ resource "aws_route_table" "private_a" {
   }
 }
 
-# プライベートサブネットへの関連付け
+# Attach to Private Subnet
 resource "aws_route_table_association" "private_a" {
   subnet_id      = aws_subnet.code_stash_private_subnet["a"].id
   route_table_id = aws_route_table.private_a.id
