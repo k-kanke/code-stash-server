@@ -1,4 +1,4 @@
-# ALB用セキュリティグループ
+# Security Group for ALB
 resource "aws_security_group" "code_stash_alb_sg" {
   name   = "code-stash-alb-sg"
   vpc_id = aws_vpc.code_stash_vpc.id
