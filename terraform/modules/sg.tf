@@ -11,7 +11,7 @@ resource "aws_security_group" "code_stash_alb_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # アウトバウンドルール
+  # Outbound rules
   egress {
     from_port   = 0
     to_port     = 0
