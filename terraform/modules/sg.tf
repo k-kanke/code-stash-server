@@ -29,7 +29,7 @@ resource "aws_security_group" "code_stash_ecs_sg" {
   name   = "code-stash-ecs-service-sg"
   vpc_id = aws_vpc.code_stash_vpc.id
 
-  # インバウンドルール
+  # inbound rules
   ingress {
     from_port       = 8085
     to_port         = 8085
